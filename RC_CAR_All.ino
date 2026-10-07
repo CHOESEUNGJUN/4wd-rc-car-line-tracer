@@ -17,20 +17,31 @@ int TURN_SPEED  = 153;     // 제자리 좌회전 / 우회전 속도 (커브에�
 float CURVE_FAST = 1.4;    // 살짝 틀 때 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (작을수록 많이 휨)
 
+int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
+
 // --- 장애물 거리 (mm) ---
 int AVOID_MM     = 60;    // 이 거리 안에 장애물 -> 좌우 확인하고 회피
 int TOO_CLOSE_MM = 20;     // 이 거리 안이면 너무 가까움 -> 먼저 후진
 
 // --- 너무 가까울 때 ---
-int TOO_CLOSE_BACK_MS = 1000;   // 후진하는 시간
+int TOO_CLOSE_BACK_MS = 200;   // 후진하는 시간
 
 // --- 회피 순서별 시간 (ms). 이 동안은 라인센서를 안 봄 ---
-int STEP0_BACK_MS     = 500;    // 0. 뒤로 살짝 빠지기      (0 이면 후진 안 함)
+int STEP0_BACK_MS     = 200;    // 0. 뒤로 살짝 빠지기      (0 이면 후진 안 함)
 int STEP1_TURN_OUT_MS = 800;    // 1. 빈 쪽으로 돌기
 int STEP2_GO_OUT_MS   = 1000;   // 2. 옆으로 나가기          (장애물에 긁히면 늘리기)
 int STEP3_TURN_FWD_MS = 800;    // 3. 다시 앞쪽으로 돌기     (보통 1번과 같게)
-int STEP4_PASS_MS     = 1200;   // 4. 장애물 옆 지나가기     (선으로 너무 빨리 돌아오면 늘리기)
+// 4. 장애물 옆 지나가기 : 조금 전진 -> 멈춰서 양옆 확인 -> 장애물 안 보일 때까지 반복
+int PASS_STEP_MS      = 300;    //    한 번에 전진하는 시간
+int SIDE_CLEAR_MM     = 200;    //    양옆이 이 거리보다 멀면 "장애물 지나감"
+int PASS_MAX_STEPS    = 8;      //    최대 반복 횟수 (이만큼 해도 안 끝나면 그냥 다음 단계로)
 int STEP5_TURN_IN_MS  = 500;    // 5. 선 쪽으로 꺾기         (선을 못 찾으면 늘리기)
+
+// --- 멈춤 / 서보 대기 시간 (ms) ---
+int STOP_WAIT_MS  = 200;   // 장애물 보고 멈춘 뒤 잠깐 기다리는 시간
+int AVOID_WAIT_MS = 500;   // 회피 시작 전 멈춰 있는 시간
+int SERVO_MOVE_MS = 300;   // 서보가 돌아갈 때까지 기다리는 시간 (거리 값이 이상하면 늘리기)
+int SERVO_REST_MS = 700;   // 회피 전 좌우 확인할 때 한쪽 재고 쉬는 시간 (줄이면 좌우 확인이 빨라짐)
 
 // --- 선을 놓쳤을 때 ---
 unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지 (20000 = 20초)
@@ -103,10 +114,10 @@ bool checkObstacle() {             // 장애물 있어서 처리했으면 true
   if (d < TOO_CLOSE_MM) {
     Serial.println("너무 가까움 -> 후진");
     goBack();    delay(TOO_CLOSE_BACK_MS);
-    stopCar();   delay(200);
+    stopCar();   delay(STOP_WAIT_MS);
   }
   else {
-    stopCar();   delay(200);
+    stopCar();   delay(STOP_WAIT_MS);
     Serial.println("장애물 -> 좌우 확인");
     avoid(lookBothSides());
   }
@@ -165,7 +176,7 @@ void followLine() {
 void avoid(bool toRight) {
   Serial.println(toRight ? "회피 : 오른쪽" : "회피 : 왼쪽");
 
-  stopCar();                          delay(500);
+  stopCar();                          delay(AVOID_WAIT_MS);
   goBack();                           delay(STEP0_BACK_MS);      // 0. 뒤로 살짝
 
   if (toRight) spinRight(); else spinLeft();
@@ -173,7 +184,11 @@ void avoid(bool toRight) {
   goForward();                        delay(STEP2_GO_OUT_MS);    // 2. 옆으로 나가기
   if (toRight) spinLeft(); else spinRight();
                                       delay(STEP3_TURN_FWD_MS);  // 3. 다시 앞쪽으로 돌기
-  goForward();                        delay(STEP4_PASS_MS);      // 4. 장애물 옆 지나가기
+  for (int i = 0; i < PASS_MAX_STEPS; i++) {                     // 4. 장애물 옆 지나가기
+    goForward();                      delay(PASS_STEP_MS);       //    조금 전진
+    stopCar();
+    if (sidesClear()) break;                                     //    양옆 확인 : 안 보이면 다 지나간 것
+  }
   if (toRight) spinLeft(); else spinRight();
                                       delay(STEP5_TURN_IN_MS);   // 5. 선 쪽으로 꺾기
 
@@ -181,11 +196,23 @@ void avoid(bool toRight) {
   goForward();                                                   // 6. 전진하면서 라인 찾기
 }
 
+bool sidesClear() {                // 서보로 양옆 확인. 양쪽 다 SIDE_CLEAR_MM 보다 멀면 true
+  EduServo.write(SERVO_SIDE_A);  delay(SERVO_MOVE_MS);
+  int dist_A = Ultrasonic();
+  EduServo.write(SERVO_SIDE_B);  delay(SERVO_MOVE_MS);
+  int dist_B = Ultrasonic();
+  EduServo.write(SERVO_CENTER);  delay(SERVO_MOVE_MS);
+
+  Serial.print("양옆 : "); Serial.print(dist_A);
+  Serial.print(" / ");     Serial.println(dist_B);
+  return dist_A > SIDE_CLEAR_MM && dist_B > SIDE_CLEAR_MM;
+}
+
 bool lookBothSides() {             // 서보로 좌우 거리 재기. true = 오른쪽으로 피하기
-  EduServo.write(SERVO_SIDE_A);  delay(300);
-  int dist_A = Ultrasonic();     delay(700);
-  EduServo.write(SERVO_SIDE_B);  delay(300);
-  int dist_B = Ultrasonic();     delay(700);
+  EduServo.write(SERVO_SIDE_A);  delay(SERVO_MOVE_MS);
+  int dist_A = Ultrasonic();     delay(SERVO_REST_MS);
+  EduServo.write(SERVO_SIDE_B);  delay(SERVO_MOVE_MS);
+  int dist_B = Ultrasonic();     delay(SERVO_REST_MS);
   EduServo.write(SERVO_CENTER);
 
   bool toRight = !(dist_A > dist_B);       // 원본 Servo_con() 과 같은 판단
@@ -212,10 +239,10 @@ void spinRight()  { drive(LOW,  HIGH, TURN_SPEED, TURN_SPEED); }  // 제자리 �
 void stopCar()    { drive(HIGH, HIGH, 0, 0); }                    // 정지
 
 void curveLeft()  {                                               // 왼쪽 살짝 (왼쪽 바퀴 느리게)
-  drive(HIGH, HIGH, min(SPEED * CURVE_FAST, 255), max(SPEED * CURVE_SLOW, 50));
+  drive(HIGH, HIGH, min(SPEED * CURVE_FAST, 255), max(SPEED * CURVE_SLOW, CURVE_MIN_SPEED));
 }
 void curveRight() {                                               // 오른쪽 살짝 (오른쪽 바퀴 느리게)
-  drive(HIGH, HIGH, max(SPEED * CURVE_SLOW, 50), min(SPEED * CURVE_FAST, 255));
+  drive(HIGH, HIGH, max(SPEED * CURVE_SLOW, CURVE_MIN_SPEED), min(SPEED * CURVE_FAST, 255));
 }
 
 // 모터 직접 제어 : 방향(HIGH 앞 / LOW 뒤), 속도(0~255)
