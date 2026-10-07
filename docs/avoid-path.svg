@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 760" width="640" height="760" font-family="-apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
     </marker>
     <pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -25,8 +25,8 @@
   <!-- 주행 경로 -->
   <g fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
     <path d="M190,700 L190,480" marker-end="url(#arrow)"/>
-    <path d="M190,470 L330,470" marker-end="url(#arrow)"/>
-    <path d="M340,470 L340,255" stroke-dasharray="14 10" marker-end="url(#arrow)"/>
+    <path d="M190,470 L332,437" marker-end="url(#arrow)"/>
+    <path d="M340,430 L340,255" stroke-dasharray="14 10" marker-end="url(#arrow)"/>
     <path d="M340,245 L200,140" marker-end="url(#arrow)"/>
     <path d="M190,130 L190,55" marker-end="url(#arrow)"/>
   </g>
@@ -39,9 +39,9 @@
   <g font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">
     <circle cx="190" cy="540" r="13" fill="#16a34a"/><text x="190" y="545">1</text>
     <circle cx="190" cy="470" r="13" fill="#16a34a"/><text x="190" y="475">2</text>
-    <circle cx="265" cy="470" r="13" fill="#16a34a"/><text x="265" y="475">3</text>
-    <circle cx="340" cy="470" r="13" fill="#16a34a"/><text x="340" y="475">4</text>
-    <circle cx="340" cy="360" r="13" fill="#16a34a"/><text x="340" y="365">5</text>
+    <circle cx="265" cy="452" r="13" fill="#16a34a"/><text x="265" y="457">3</text>
+    <circle cx="340" cy="435" r="13" fill="#16a34a"/><text x="340" y="440">4</text>
+    <circle cx="340" cy="345" r="13" fill="#16a34a"/><text x="340" y="350">5</text>
     <circle cx="282" cy="202" r="13" fill="#dc2626"/><text x="282" y="207">6</text>
     <circle cx="190" cy="133" r="13" fill="#dc2626"/><text x="190" y="138">7</text>
     <circle cx="190" cy="85" r="13" fill="#16a34a"/><text x="190" y="90">8</text>
@@ -62,13 +62,13 @@
     <text x="398" y="352">조금 전진 → 정지 → 측정 반복</text>
     <text x="398" y="372">안 보이면 다 지나간 것</text>
 
-    <text x="380" y="432"><tspan font-weight="700" fill="#15803d">4</tspan>  다시 돌기 : 장애물 쪽으로 90°</text>
+    <text x="380" y="432"><tspan font-weight="700" fill="#15803d">4</tspan>  다시 돌기 : 장애물 쪽으로 약 90°</text>
     <text x="398" y="452">(원래 진행 방향을 봄)</text>
 
     <text x="380" y="502"><tspan font-weight="700" fill="#15803d">3</tspan>  옆으로 나가기 :</text>
-    <text x="398" y="522">잰 폭 + 여유만큼 직진</text>
+    <text x="398" y="522">잰 폭 + 여유만큼 직진 (살짝 비스듬히)</text>
 
-    <text x="380" y="582"><tspan font-weight="700" fill="#15803d">2</tspan>  돌기 : 짧은 쪽으로 90°</text>
+    <text x="380" y="582"><tspan font-weight="700" fill="#15803d">2</tspan>  돌기 : 짧은 쪽으로 약 90°</text>
 
     <text x="380" y="642"><tspan font-weight="700" fill="#15803d">1</tspan>  폭 재기 : 장애물 앞에서 정지,</text>
     <text x="398" y="662">서보로 좌우를 훑어 폭 측정</text>
