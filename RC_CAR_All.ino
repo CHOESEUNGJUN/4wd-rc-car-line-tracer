@@ -223,10 +223,10 @@ void followLine() {
 
   //   L  C  R                              동작
   if      (L == 1 && C == 0 && R == 1) { goForward();  Serial.println(F("직진")); }
-  else if (L == 1 && C == 0 && R == 0) { curveLeft();  Serial.println(F("왼쪽 살짝")); }
-  else if (L == 1 && C == 1 && R == 0) { spinLeft();   Serial.println(F("좌회전")); }
-  else if (L == 0 && C == 0 && R == 1) { curveRight(); Serial.println(F("오른쪽 살짝")); }
-  else if (L == 0 && C == 1 && R == 1) { spinRight();  Serial.println(F("우회전")); }
+  else if (L == 1 && C == 0 && R == 0) { curveLeft();  Serial.println(F("왼쪽 보정(살짝)")); }
+  else if (L == 1 && C == 1 && R == 0) { spinLeft();   Serial.println(F("왼쪽 보정(크게)")); }
+  else if (L == 0 && C == 0 && R == 1) { curveRight(); Serial.println(F("오른쪽 보정(살짝)")); }
+  else if (L == 0 && C == 1 && R == 1) { spinRight();  Serial.println(F("오른쪽 보정(크게)")); }
   else if (L == 0 && R == 0)           { stopCar();    Serial.println(F("정지")); }
   else                                 { Serial.println(); }
 }
