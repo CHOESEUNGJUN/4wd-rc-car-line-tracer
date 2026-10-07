@@ -42,27 +42,33 @@
     <circle cx="265" cy="470" r="13" fill="#16a34a"/><text x="265" y="475">3</text>
     <circle cx="340" cy="470" r="13" fill="#16a34a"/><text x="340" y="475">4</text>
     <circle cx="340" cy="360" r="13" fill="#16a34a"/><text x="340" y="365">5</text>
-    <circle cx="270" cy="193" r="13" fill="#16a34a"/><text x="270" y="198">6</text>
+    <circle cx="282" cy="202" r="13" fill="#dc2626"/><text x="282" y="207">6</text>
+    <circle cx="190" cy="133" r="13" fill="#dc2626"/><text x="190" y="138">7</text>
+    <circle cx="190" cy="85" r="13" fill="#16a34a"/><text x="190" y="90">8</text>
   </g>
 
   <!-- 설명 -->
   <g font-size="15" fill="#111827">
-    <text x="380" y="92"><tspan font-weight="700" fill="#15803d">6</tspan>  복귀 : 선 쪽으로 45° 돌아</text>
-    <text x="398" y="112">선 찾으며 비스듬히 직진</text>
-    <text x="398" y="132">선 인식하면 원래 방향으로 돌아</text>
-    <text x="398" y="152">라인 주행 계속</text>
+    <text x="380" y="72"><tspan font-weight="700" fill="#15803d">8</tspan>  라인트레이싱 계속</text>
 
-    <text x="380" y="262"><tspan font-weight="700" fill="#15803d">5</tspan>  지나가기 : 옆을 서보로 보며</text>
-    <text x="398" y="282">조금 전진 → 정지 → 측정 반복</text>
-    <text x="398" y="302">안 보이면 다 지나간 것</text>
+    <text x="380" y="122"><tspan font-weight="700" fill="#dc2626">7</tspan>  선 인식 :</text>
+    <text x="398" y="142">원래 방향으로 돌아 선 위에 정렬</text>
 
-    <text x="380" y="392"><tspan font-weight="700" fill="#15803d">4</tspan>  다시 돌기 : 장애물 쪽으로 90°</text>
-    <text x="398" y="412">(원래 진행 방향을 봄)</text>
+    <text x="380" y="202"><tspan font-weight="700" fill="#dc2626">6</tspan>  라인 복귀 : 선 쪽으로 45° 틀어</text>
+    <text x="398" y="222">선 찾으며 비스듬히 직진</text>
+    <text x="398" y="244" font-size="13" fill="#dc2626">※ 6번부터 아직 잘 안 됨 (반대로 꺾음)</text>
 
-    <text x="380" y="482"><tspan font-weight="700" fill="#15803d">3</tspan>  옆으로 나가기 :</text>
-    <text x="398" y="502">잰 폭 + 여유만큼 직진</text>
+    <text x="380" y="332"><tspan font-weight="700" fill="#15803d">5</tspan>  지나가기 : 옆을 서보로 보며</text>
+    <text x="398" y="352">조금 전진 → 정지 → 측정 반복</text>
+    <text x="398" y="372">안 보이면 다 지나간 것</text>
 
-    <text x="380" y="572"><tspan font-weight="700" fill="#15803d">2</tspan>  돌기 : 짧은 쪽으로 90°</text>
+    <text x="380" y="432"><tspan font-weight="700" fill="#15803d">4</tspan>  다시 돌기 : 장애물 쪽으로 90°</text>
+    <text x="398" y="452">(원래 진행 방향을 봄)</text>
+
+    <text x="380" y="502"><tspan font-weight="700" fill="#15803d">3</tspan>  옆으로 나가기 :</text>
+    <text x="398" y="522">잰 폭 + 여유만큼 직진</text>
+
+    <text x="380" y="582"><tspan font-weight="700" fill="#15803d">2</tspan>  돌기 : 짧은 쪽으로 90°</text>
 
     <text x="380" y="642"><tspan font-weight="700" fill="#15803d">1</tspan>  폭 재기 : 장애물 앞에서 정지,</text>
     <text x="398" y="662">서보로 좌우를 훑어 폭 측정</text>
