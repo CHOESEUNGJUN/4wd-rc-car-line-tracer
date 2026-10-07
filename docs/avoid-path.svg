@@ -42,21 +42,21 @@
     <circle cx="265" cy="452" r="13" fill="#16a34a"/><text x="265" y="457">3</text>
     <circle cx="340" cy="435" r="13" fill="#16a34a"/><text x="340" y="440">4</text>
     <circle cx="340" cy="345" r="13" fill="#16a34a"/><text x="340" y="350">5</text>
-    <circle cx="282" cy="202" r="13" fill="#dc2626"/><text x="282" y="207">6</text>
-    <circle cx="190" cy="133" r="13" fill="#dc2626"/><text x="190" y="138">7</text>
-    <circle cx="190" cy="85" r="13" fill="#16a34a"/><text x="190" y="90">8</text>
+    <circle cx="340" cy="250" r="13" fill="#dc2626"/><text x="340" y="255">6</text>
+    <circle cx="270" cy="193" r="13" fill="#dc2626"/><text x="270" y="198">7</text>
+    <circle cx="190" cy="100" r="13" fill="#16a34a"/><text x="190" y="105">8</text>
   </g>
 
   <!-- 설명 -->
   <g font-size="15" fill="#111827">
-    <text x="380" y="72"><tspan font-weight="700" fill="#15803d">8</tspan>  라인트레이싱 계속</text>
+    <text x="380" y="92"><tspan font-weight="700" fill="#15803d">8</tspan>  라인트레이싱 :</text>
+    <text x="398" y="112">선을 찾으면 다시 선 따라가기</text>
 
-    <text x="380" y="122"><tspan font-weight="700" fill="#dc2626">7</tspan>  선 인식 :</text>
-    <text x="398" y="142">원래 방향으로 돌아 선 위에 정렬</text>
+    <text x="380" y="172"><tspan font-weight="700" fill="#dc2626">7</tspan>  직진 : 비스듬히 가면서</text>
+    <text x="398" y="192">라인 찾기</text>
 
-    <text x="380" y="202"><tspan font-weight="700" fill="#dc2626">6</tspan>  라인 복귀 : 선 쪽으로 45° 틀어</text>
-    <text x="398" y="222">선 찾으며 비스듬히 직진</text>
-    <text x="398" y="244" font-size="13" fill="#dc2626">※ 6번부터 아직 잘 안 됨 (반대로 꺾음)</text>
+    <text x="380" y="252"><tspan font-weight="700" fill="#dc2626">6</tspan>  45° 꺾기 : 선 쪽으로 틀기</text>
+    <text x="398" y="274" font-size="13" fill="#dc2626">※ 6번부터 아직 잘 안 됨 (반대로 꺾음)</text>
 
     <text x="380" y="332"><tspan font-weight="700" fill="#15803d">5</tspan>  지나가기 : 옆을 서보로 보며</text>
     <text x="398" y="352">조금 전진 → 정지 → 측정 반복</text>
