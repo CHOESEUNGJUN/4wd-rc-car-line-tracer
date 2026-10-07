@@ -66,8 +66,8 @@ int LEG2_MIN_MM    = 100;  // 두 번째 구간 : 장애물 옆에 닿기 전이
 // --- 회피 4단계 : 비스듬히 선으로 돌아오기 ---
 int RETURN_TURN_DEG = 45;  // 선 쪽으로 비스듬히 도는 각도
 int RETURN_MAX_MM   = 700; // 선 찾으며 직진하는 최대 거리
-int LINE_OVER_MM    = 40;  // 선 발견 후 살짝 더 전진 (차 중심이 선 위에 오게)
-int LINE_TURN_MAX_MS = 1200; // 선 위에서 원래 방향으로 돌 때 최대 시간 (가운데 센서가 선을 보면 바로 멈춤)
+int LINE_OVER_MM    = 120; // 선 발견 후 : 가운데 센서가 선을 넘어갈 때까지 더 전진하는 최대 거리
+int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 시간 (가운데 센서가 선을 보면 바로 멈춤). 90도 조금 넘게만
 
 // --- 선을 놓쳤을 때 ---
 unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지 (20000 = 20초)
@@ -319,22 +319,40 @@ void avoidLeft(int d0) {
   }
 }
 
-// 선 찾으면서 직진. 찾으면 차 중심이 선 위에 오게 살짝 더 가고 true
+// 선 찾으면서 직진. 찾으면 가운데 센서가 선을 넘어갈 때까지 더 가고 true
+//   (비스듬히 들어오면 옆 센서가 먼저 선을 봄. 가운데 센서가 선을 넘어가야, 그 뒤에 돌 때 선을 다시 만남)
 bool findLine() {
   if (!moveMM(RETURN_MAX_MM, true)) {
     Serial.println(F("[4] 선 못 찾음 -> 전진하며 찾기"));
     return false;
   }
-  Serial.println(F("[4] 선 발견 -> 원래 방향으로 돌기"));
-  moveMM(LINE_OVER_MM, false);
+  Serial.print(F("[4] 선 발견 (라인 ")); printLine(); Serial.println(F(") -> 가운데 센서가 넘어갈 때까지 전진"));
+
+  unsigned long maxMs = (unsigned long)LINE_OVER_MM * 1000UL / MM_PER_SEC;
+  unsigned long start = millis();
+  bool centerSeen = false;
+  goForward();
+  while (millis() - start < maxMs) {
+    if (digitalRead(C_Line) == 0) centerSeen = true;   // 가운데 센서가 선 위
+    else if (centerSeen) break;                        // 선 위였다가 벗어남 = 넘어감
+  }
+  stopCar();
+  delay(SETTLE_MS);
+  if (centerSeen) Serial.println(F("[4] 가운데 센서 선 넘어감 -> 원래 방향으로 돌기"));
+  else            Serial.println(F("[4] 가운데 센서가 선을 못 봄 (LINE_OVER_MM 늘리기) -> 그래도 돌기"));
   return true;
 }
 
 // (돌고 있는 중에) 가운데 센서가 선을 볼 때까지 기다렸다가 멈춤
 void waitCenterOnLine() {
   unsigned long start = millis();
-  while (digitalRead(C_Line) != 0 && millis() - start < (unsigned long)LINE_TURN_MAX_MS) { }
+  bool found = false;
+  while (millis() - start < (unsigned long)LINE_TURN_MAX_MS) {
+    if (digitalRead(C_Line) == 0) { found = true; break; }
+  }
   stopCar();
+  if (found) Serial.println(F("[4] 선 위에 정렬됨 -> 라인 주행"));
+  else       Serial.println(F("[4] 돌았는데 선을 못 만남 -> 라인 주행으로 넘김"));
 }
 
 // 장애물을 옆에 두고 지나가기 : 옆을 봄 -> 보이면 살짝 전진 -> 또 봄 -> 안 보이면 끝

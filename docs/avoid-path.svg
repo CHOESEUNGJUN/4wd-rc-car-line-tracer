@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 760" width="640" height="760" font-family="-apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+    <pattern id="hatch" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="12" height="12" fill="#fee2e2"/>
+      <line x1="0" y1="0" x2="0" y2="12" stroke="#ef4444" stroke-width="3"/>
+    </pattern>
+  </defs>
+
+  <rect x="0" y="0" width="640" height="760" fill="#ffffff"/>
+  <rect x="0.5" y="0.5" width="639" height="759" fill="none" stroke="#d1d5db"/>
+
+  <!-- 바닥(검은 바탕)과 흰 선 -->
+  <rect x="120" y="30" width="140" height="700" rx="6" fill="#1f2937"/>
+  <rect x="180" y="30" width="20" height="700" fill="#f9fafb"/>
+  <text x="190" y="22" text-anchor="middle" font-size="14" fill="#374151">흰 선</text>
+
+  <!-- 장애물 -->
+  <rect x="125" y="330" width="130" height="80" fill="url(#hatch)" stroke="#ef4444" stroke-width="2.5"/>
+  <rect x="155" y="357" width="70" height="28" rx="6" fill="#ffffff"/>
+  <text x="190" y="377" text-anchor="middle" font-size="17" font-weight="700" fill="#b91c1c">장애물</text>
+
+  <!-- 주행 경로 -->
+  <g fill="none" stroke="#7c3aed" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M190,700 L190,480" marker-end="url(#arrow)"/>
+    <path d="M190,470 L330,470" marker-end="url(#arrow)"/>
+    <path d="M340,470 L340,255" stroke-dasharray="14 10" marker-end="url(#arrow)"/>
+    <path d="M340,245 L200,140" marker-end="url(#arrow)"/>
+    <path d="M190,130 L190,55" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- 차 (출발 위치) -->
+  <rect x="172" y="690" width="36" height="46" rx="6" fill="#7c3aed"/>
+  <text x="190" y="718" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">차</text>
+
+  <!-- 단계 번호 (README 단계별 설명과 같은 번호) -->
+  <g font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">
+    <circle cx="190" cy="540" r="13" fill="#16a34a"/><text x="190" y="545">1</text>
+    <circle cx="190" cy="470" r="13" fill="#16a34a"/><text x="190" y="475">2</text>
+    <circle cx="265" cy="470" r="13" fill="#16a34a"/><text x="265" y="475">3</text>
+    <circle cx="340" cy="470" r="13" fill="#16a34a"/><text x="340" y="475">4</text>
+    <circle cx="340" cy="360" r="13" fill="#16a34a"/><text x="340" y="365">5</text>
+    <circle cx="270" cy="193" r="13" fill="#16a34a"/><text x="270" y="198">6</text>
+  </g>
+
+  <!-- 설명 -->
+  <g font-size="15" fill="#111827">
+    <text x="380" y="92"><tspan font-weight="700" fill="#15803d">6</tspan>  복귀 : 선 쪽으로 45° 돌아</text>
+    <text x="398" y="112">선 찾으며 비스듬히 직진</text>
+    <text x="398" y="132">선 인식하면 원래 방향으로 돌아</text>
+    <text x="398" y="152">라인 주행 계속</text>
+
+    <text x="380" y="262"><tspan font-weight="700" fill="#15803d">5</tspan>  지나가기 : 옆을 서보로 보며</text>
+    <text x="398" y="282">조금 전진 → 정지 → 측정 반복</text>
+    <text x="398" y="302">안 보이면 다 지나간 것</text>
+
+    <text x="380" y="392"><tspan font-weight="700" fill="#15803d">4</tspan>  다시 돌기 : 장애물 쪽으로 90°</text>
+    <text x="398" y="412">(원래 진행 방향을 봄)</text>
+
+    <text x="380" y="482"><tspan font-weight="700" fill="#15803d">3</tspan>  옆으로 나가기 :</text>
+    <text x="398" y="502">잰 폭 + 여유만큼 직진</text>
+
+    <text x="380" y="572"><tspan font-weight="700" fill="#15803d">2</tspan>  돌기 : 짧은 쪽으로 90°</text>
+
+    <text x="380" y="642"><tspan font-weight="700" fill="#15803d">1</tspan>  폭 재기 : 장애물 앞에서 정지,</text>
+    <text x="398" y="662">서보로 좌우를 훑어 폭 측정</text>
+  </g>
+</svg>
