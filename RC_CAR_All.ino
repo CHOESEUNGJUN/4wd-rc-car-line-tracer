@@ -18,7 +18,7 @@ float CURVE_FAST = 1.4;    // 살짝 틀 때 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (작을수록 많이 휨)
 
 // --- 장애물 거리 (mm) ---
-int AVOID_MM     = ;    // 이 거리 안에 장애물 -> 좌우 확인하고 회피
+int AVOID_MM     = 60;    // 이 거리 안에 장애물 -> 좌우 확인하고 회피
 int TOO_CLOSE_MM = 20;     // 이 거리 안이면 너무 가까움 -> 먼저 후진
 
 // --- 너무 가까울 때 ---
