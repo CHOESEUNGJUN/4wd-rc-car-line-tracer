@@ -2,7 +2,7 @@
  *  ★ 흰(밝은) 바탕에 검은 선을 따라가는 버전입니다. 시리얼 없음.
  *    어두운 바탕 + 흰 선 트랙은 RC_CAR_WHITE_LINE/RC_CAR_WHITE_LINE.ino 를 쓰세요.
  *    로그를 보며 디버깅하려면 RC_CAR_BLACK_LINE_DEBUG/RC_CAR_BLACK_LINE_DEBUG.ino 를 쓰세요.
- *    차이는 라인센서 값을 뒤집어 읽는 것(readLine) 하나뿐이고, 나머지 동작과 설정은 같습니다.
+ *    라인 따라가기 표는 센서 값 그대로(검은 선 = 1) 따로 씀. 회피 동작과 설정은 흰 선 버전과 같음.
  *    트랙이 바뀌면 라인센서 가변저항 감도를 다시 맞추세요.
  *  전원 켜면 바로 라인 따라 주행. 장애물을 만나면 폭을 재고 옆으로 돌아서 다시 선으로 복귀.
  *  고칠 때는 아래 [설정] 숫자만 바꾸면 됨. 시간은 전부 ms (1000 = 1초).
@@ -16,7 +16,7 @@
 
 // --- 속도 (0~255) ---
 int SPEED            = 140;   // 직진
-int TURN_SPEED       = 140;   // 라인 보정 (달리면서 크게 꺾기)
+int TURN_SPEED       = 170;   // 라인 보정 (달리면서 크게 꺾기)
 int AVOID_TURN_SPEED = 170;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
 float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
@@ -63,8 +63,8 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 
 // --- 기타 ---
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
-unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지
-unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(0,?,0) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
+unsigned long LOST_STOP_MS = 2000;    // 선 놓침(0,0,0)이 이 시간 동안은 하던 동작 유지, 그 뒤 정지 (2000 = 2초)
+unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // ============================================================
 // [핀]
@@ -72,7 +72,7 @@ unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도
 int RightMotor_E_pin = 5, LeftMotor_E_pin = 6;     // 모터 속도(PWM)
 int RightMotor_1_pin = 8, RightMotor_2_pin = 9;    // 오른쪽 모터 방향
 int LeftMotor_3_pin = 10, LeftMotor_4_pin = 11;    // 왼쪽 모터 방향
-int L_Line = A5, C_Line = A4, R_Line = A3;         // 라인센서 (readLine 으로 읽으면 검은 선 = 0, 흰 바탕 = 1)
+int L_Line = A5, C_Line = A4, R_Line = A3;         // 라인센서 (그대로 읽으면 검은 선 = 1, 흰 바탕 = 0)
 int trigPin = 13, echoPin = 12, servoPin = 2;      // 초음파, 서보
 
 // ============================================================
@@ -118,12 +118,12 @@ bool checkObstacle(int d) {
 }
 
 // ============================================================
-// 라인 따라가기 (0 = 선 인식. 센서 값은 readLine 으로 뒤집어 읽음)
+// 라인 따라가기 (검은 선 버전 : 센서 값 그대로 씀. 검은 선 = 1, 흰 바탕 = 0)
 // ============================================================
 void followLine() {
-  int L = readLine(L_Line), C = readLine(C_Line), R = readLine(R_Line);
+  int L = digitalRead(L_Line), C = digitalRead(C_Line), R = digitalRead(R_Line);
 
-  if (L == 1 && C == 1 && R == 1) {          // 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
+  if (L == 0 && C == 0 && R == 0) {          // 0,0,0 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
     if (searchLine) { searchLine = false; goForward(); }   // 회피 직후면 전진하며 찾기
     if (lost_since == 0) lost_since = millis();
     if (millis() - lost_since >= LOST_STOP_MS) { stopCar(); lost_since = millis(); last_state = -1; }
@@ -132,9 +132,8 @@ void followLine() {
   lost_since = 0;
   searchLine = false;
 
-  // 0,?,0 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
-  //         (검은 선이 넓으면 중앙에서 살짝만 벗어나도 잠깐씩 나옴)
-  if (L == 0 && R == 0) {
+  // 1,?,1 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
+  if (L == 1 && R == 1) {
     if (both_since == 0) both_since = millis();
     if (millis() - both_since < LINE_GRACE_MS) return;
   }
@@ -145,12 +144,12 @@ void followLine() {
   last_state = state;
 
   //   L  C  R
-  if      (L == 1 && C == 0 && R == 1) goForward();             // 직진
-  else if (L == 1 && C == 0 && R == 0) curveLeft();             // 왼쪽 살짝 보정
-  else if (L == 1 && C == 1 && R == 0) spin(false, TURN_SPEED); // 왼쪽 크게 보정
-  else if (L == 0 && C == 0 && R == 1) curveRight();            // 오른쪽 살짝 보정
+  if      (L == 0 && C == 1 && R == 0) goForward();             // 직진
   else if (L == 0 && C == 1 && R == 1) spin(true, TURN_SPEED);  // 오른쪽 크게 보정
-  else if (L == 0 && R == 0)           stopCar();               // 정지
+  else if (L == 0 && C == 0 && R == 1) curveRight();            // 오른쪽 살짝 보정
+  else if (L == 1 && C == 1 && R == 0) spin(false, TURN_SPEED); // 왼쪽 크게 보정
+  else if (L == 1 && C == 0 && R == 0) curveLeft();             // 왼쪽 살짝 보정
+  else if (L == 1 && R == 1)           stopCar();               // 정지
 }
 
 // ============================================================
@@ -285,8 +284,7 @@ int Ultrasonic() {                 // 정면 거리(mm). 없으면 9999
 // ============================================================
 // 동작
 // ============================================================
-// 라인센서 읽기 : 센서는 검은색에서 1, 흰색에서 0 이 나옴
-//   -> 뒤집어서 "선(검은색) = 0, 바탕(흰색) = 1" 로 맞춤. 그래서 아래 코드는 흰 선 버전과 똑같이 씀
+// 회피 중 선 찾기용 : 센서는 검은색에서 1 -> 뒤집어서 "선 = 0" 으로 맞춤 (runUntil, findLine 에서 씀)
 int readLine(int pin) { return !digitalRead(pin); }
 
 int mmToMs(int mm) { return (long)mm * 1000 / MM_PER_SEC; }

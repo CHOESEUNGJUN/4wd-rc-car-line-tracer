@@ -78,8 +78,8 @@ int LINE_OVER_MM    = 120; // 선 발견 후 : 가운데 센서가 선을 넘어
 int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 시간 (가운데 센서가 선을 보면 바로 멈춤). 90도 조금 넘게만
 
 // --- 선을 놓쳤을 때 ---
-unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지 (20000 = 20초)
-unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(0,?,0) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
+unsigned long LOST_STOP_MS = 2000;    // 선 놓침(0,0,0)이 이 시간 동안은 하던 동작 유지, 그 뒤 정지 (2000 = 2초)
+unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // --- 서보 ---
 int SERVO_CENTER = 90;     // 정면 각도
@@ -163,10 +163,10 @@ void debugStatus(int d) {          // 주행 중 상태를 DEBUG_MS 마다 한 �
 // 라인센서 읽기 : 센서는 검은색에서 1, 흰색에서 0 -> 뒤집어서 "선(검은색) = 0" 으로 맞춤
 int readLine(int pin) { return !digitalRead(pin); }
 
-void printLine() {                 // 라인센서 3개 값 출력 (L,C,R)
-  Serial.print(readLine(L_Line)); Serial.print(F(","));
-  Serial.print(readLine(C_Line)); Serial.print(F(","));
-  Serial.print(readLine(R_Line));
+void printLine() {                 // 라인센서 3개 값 출력 (L,C,R) : 센서 값 그대로 (검은 선 = 1)
+  Serial.print(digitalRead(L_Line)); Serial.print(F(","));
+  Serial.print(digitalRead(C_Line)); Serial.print(F(","));
+  Serial.print(digitalRead(R_Line));
 }
 
 // ============================================================
@@ -201,13 +201,13 @@ bool checkObstacle(int d) {        // d = 정면 거리(mm). 장애물 있어서
 // 라인트레이서
 //   밝은 바탕 + 검은 선 : readLine 으로 뒤집어 읽어서 검은 선 위 = 0, 흰 바탕 = 1
 // ============================================================
-void followLine() {
-  int L = readLine(L_Line);
-  int C = readLine(C_Line);
-  int R = readLine(R_Line);
+void followLine() {                // 검은 선 버전 : 센서 값 그대로 씀 (검은 선 = 1, 흰 바탕 = 0)
+  int L = digitalRead(L_Line);
+  int C = digitalRead(C_Line);
+  int R = digitalRead(R_Line);
 
-  // 1,1,1 : 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
-  if (L == 1 && C == 1 && R == 1) {
+  // 0,0,0 : 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
+  if (L == 0 && C == 0 && R == 0) {
     if (searchLine) {              // 회피 직후인데 선이 없음 -> 전진하며 찾기 (멈춰 있지 않게)
       searchLine = false;
       goForward();
@@ -225,9 +225,8 @@ void followLine() {
   lost_since = 0;
   searchLine = false;
 
-  // 0,?,0 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
-  //         (검은 선이 넓으면 중앙에서 살짝만 벗어나도 잠깐씩 나옴)
-  if (L == 0 && R == 0) {
+  // 1,?,1 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
+  if (L == 1 && R == 1) {
     if (both_since == 0) both_since = millis();
     if (millis() - both_since < LINE_GRACE_MS) return;
   }
@@ -243,12 +242,12 @@ void followLine() {
   Serial.print(R); Serial.print(F("   "));
 
   //   L  C  R                              동작
-  if      (L == 1 && C == 0 && R == 1) { goForward();  Serial.println(F("직진")); }
-  else if (L == 1 && C == 0 && R == 0) { curveLeft();  Serial.println(F("왼쪽 보정(살짝)")); }
-  else if (L == 1 && C == 1 && R == 0) { spinLeft();   Serial.println(F("왼쪽 보정(크게)")); }
-  else if (L == 0 && C == 0 && R == 1) { curveRight(); Serial.println(F("오른쪽 보정(살짝)")); }
+  if      (L == 0 && C == 1 && R == 0) { goForward();  Serial.println(F("직진")); }
   else if (L == 0 && C == 1 && R == 1) { spinRight();  Serial.println(F("오른쪽 보정(크게)")); }
-  else if (L == 0 && R == 0)           { stopCar();    Serial.println(F("정지")); }
+  else if (L == 0 && C == 0 && R == 1) { curveRight(); Serial.println(F("오른쪽 보정(살짝)")); }
+  else if (L == 1 && C == 1 && R == 0) { spinLeft();   Serial.println(F("왼쪽 보정(크게)")); }
+  else if (L == 1 && C == 0 && R == 0) { curveLeft();  Serial.println(F("왼쪽 보정(살짝)")); }
+  else if (L == 1 && R == 1)           { stopCar();    Serial.println(F("정지")); }
   else                                 { Serial.println(); }
 }
 
