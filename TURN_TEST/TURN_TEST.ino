@@ -1,4 +1,4 @@
-/* 회전 시간 맞추기 테스트 (RC_CAR_All 과 같은 모터 배선)
+/* 회전 시간 맞추기 테스트 (본 코드 과 같은 모터 배선)
  *
  *  시리얼 모니터 9600 baud, 한 글자씩 보내기
  *    r : 오른쪽 90도      l : 왼쪽 90도
@@ -7,7 +7,7 @@
  *    p : 지금 값 전부 출력
  *
  *  차 바닥에 테이프로 방향 표시하고, 돌려보면서 +/- 로 맞춘 뒤
- *  마지막에 p 로 나온 숫자를 RC_CAR_All.ino 의 TURN_RIGHT_90_MS / TURN_LEFT_90_MS /
+ *  마지막에 p 로 나온 숫자를 RC_CAR_WHITE_LINE/RC_CAR_WHITE_LINE.ino 의 TURN_RIGHT_90_MS / TURN_LEFT_90_MS /
  *  TURN_RIGHT_45_MS / TURN_LEFT_45_MS 에 옮겨 적기
  */
 
@@ -17,10 +17,10 @@ int LEFT_90_MS  = 900;
 int RIGHT_45_MS = 500;
 int LEFT_45_MS  = 500;
 
-int TURN_SPEED = 170;      // RC_CAR_All 의 AVOID_TURN_SPEED 와 같게 (멈춘 상태에서 도는 속도)
+int TURN_SPEED = 170;      // 본 코드 의 AVOID_TURN_SPEED 와 같게 (멈춘 상태에서 도는 속도)
 int STEP_MS    = 20;       // +/- 한 번에 바뀌는 양
 
-// --- 모터 핀 (RC_CAR_All 과 같음) ---
+// --- 모터 핀 (본 코드 과 같음) ---
 int RightMotor_E_pin = 5;
 int LeftMotor_E_pin  = 6;
 int RightMotor_1_pin = 8;
@@ -68,7 +68,7 @@ void turn(bool toRight, int ms, const __FlashStringHelper* name) {
 }
 
 void printAll() {
-  Serial.println(F("--- 지금 값 (RC_CAR_All 에 옮겨 적기) ---"));
+  Serial.println(F("--- 지금 값 (본 코드 에 옮겨 적기) ---"));
   Serial.print(F("오른쪽 90도 : ")); Serial.println(RIGHT_90_MS);
   Serial.print(F("왼쪽   90도 : ")); Serial.println(LEFT_90_MS);
   Serial.print(F("오른쪽 45도 : ")); Serial.println(RIGHT_45_MS);

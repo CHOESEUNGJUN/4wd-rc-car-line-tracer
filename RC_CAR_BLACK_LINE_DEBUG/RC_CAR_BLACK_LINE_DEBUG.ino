@@ -1,8 +1,9 @@
-/* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피  [디버그 버전]
+/* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피  [검은 선 / 디버그 버전]
  *  ★ 시리얼 디버그 출력이 있는 버전입니다. (시리얼 모니터 9600 baud)
  *    단계별 로그를 보면서 문제를 찾을 때 씀. 출력 때문에 조금 느려짐.
- *    실제 주행은 시리얼이 없는 RC_CAR_All.ino 를 쓰세요.
- *    설정값을 바꾸면 RC_CAR_All.ino 에도 똑같이 옮겨 적기.
+ *    밝은 바탕 + 검은 선 트랙용. 실제 주행은 시리얼이 없는 RC_CAR_BLACK_LINE/RC_CAR_BLACK_LINE.ino 를 쓰세요.
+ *    흰 선 디버그 버전과 라인센서 값을 뒤집어 읽는 것(readLine)만 다름.
+ *    설정값을 바꾸면 RC_CAR_BLACK_LINE/RC_CAR_BLACK_LINE.ino 에도 똑같이 옮겨 적기.
  *  전원 켜면 바로 라인 따라 주행
  *
  *  고칠 때는 아래 [설정] 부분 숫자만 바꾸면 됩니다.
@@ -157,10 +158,13 @@ void debugStatus(int d) {          // 주행 중 상태를 DEBUG_MS 마다 한 �
   Serial.print(F(" | 동작 "));      Serial.println(action);
 }
 
+// 라인센서 읽기 : 센서는 검은색에서 1, 흰색에서 0 -> 뒤집어서 "선(검은색) = 0" 으로 맞춤
+int readLine(int pin) { return !digitalRead(pin); }
+
 void printLine() {                 // 라인센서 3개 값 출력 (L,C,R)
-  Serial.print(digitalRead(L_Line)); Serial.print(F(","));
-  Serial.print(digitalRead(C_Line)); Serial.print(F(","));
-  Serial.print(digitalRead(R_Line));
+  Serial.print(readLine(L_Line)); Serial.print(F(","));
+  Serial.print(readLine(C_Line)); Serial.print(F(","));
+  Serial.print(readLine(R_Line));
 }
 
 // ============================================================
@@ -193,12 +197,12 @@ bool checkObstacle(int d) {        // d = 정면 거리(mm). 장애물 있어서
 
 // ============================================================
 // 라인트레이서
-//   검은 바탕 + 흰 선 : 흰 선 위 = 0, 검은 바탕 = 1
+//   밝은 바탕 + 검은 선 : readLine 으로 뒤집어 읽어서 검은 선 위 = 0, 흰 바탕 = 1
 // ============================================================
 void followLine() {
-  int L = digitalRead(L_Line);
-  int C = digitalRead(C_Line);
-  int R = digitalRead(R_Line);
+  int L = readLine(L_Line);
+  int C = readLine(C_Line);
+  int R = readLine(R_Line);
 
   // 1,1,1 : 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
   if (L == 1 && C == 1 && R == 1) {
@@ -330,7 +334,7 @@ bool findLine() {
   bool centerSeen = false;
   goForward();
   while (millis() - start < maxMs) {
-    if (digitalRead(C_Line) == 0) centerSeen = true;   // 가운데 센서가 선 위
+    if (readLine(C_Line) == 0) centerSeen = true;   // 가운데 센서가 선 위
     else if (centerSeen) break;                        // 선 위였다가 벗어남 = 넘어감
   }
   stopCar();
@@ -345,7 +349,7 @@ void waitCenterOnLine() {
   unsigned long start = millis();
   bool found = false;
   while (millis() - start < (unsigned long)LINE_TURN_MAX_MS) {
-    if (digitalRead(C_Line) == 0) { found = true; break; }
+    if (readLine(C_Line) == 0) { found = true; break; }
   }
   stopCar();
   if (found) Serial.println(F("[8 라인트레이싱] 선 위에 정렬됨 -> 라인 주행"));
@@ -442,7 +446,7 @@ void spin(bool toRight, int speed) {  // 제자리 회전 시작 (멈추지 않�
 }
 
 bool onLine() {                    // 라인센서 중 하나라도 흰 선(0)을 보면 true
-  return digitalRead(L_Line) == 0 || digitalRead(C_Line) == 0 || digitalRead(R_Line) == 0;
+  return readLine(L_Line) == 0 || readLine(C_Line) == 0 || readLine(R_Line) == 0;
 }
 
 int Ultrasonic() {                 // 앞 장애물까지 거리(mm). 없으면 9999

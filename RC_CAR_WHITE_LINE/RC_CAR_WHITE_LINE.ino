@@ -1,6 +1,7 @@
 /* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피
  *  ★ 시리얼이 없는 버전입니다. (실제 주행용, 가장 빠름)
- *    로그를 보며 디버깅하려면 RC_CAR_All_DEBUG/RC_CAR_All_DEBUG.ino 를 쓰세요.
+ *    [흰 선 버전] 어두운 바탕 + 흰 선 트랙용. 밝은 바탕 + 검은 선은 RC_CAR_BLACK_LINE/RC_CAR_BLACK_LINE.ino
+ *    로그를 보며 디버깅하려면 RC_CAR_WHITE_LINE_DEBUG/RC_CAR_WHITE_LINE_DEBUG.ino 를 쓰세요.
  *  전원 켜면 바로 라인 따라 주행. 장애물을 만나면 폭을 재고 옆으로 돌아서 다시 선으로 복귀.
  *  고칠 때는 아래 [설정] 숫자만 바꾸면 됨. 시간은 전부 ms (1000 = 1초).
  */
