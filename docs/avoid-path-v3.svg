@@ -42,8 +42,8 @@
     <circle cx="265" cy="452" r="13" fill="#16a34a"/><text x="265" y="457">3</text>
     <circle cx="340" cy="435" r="13" fill="#16a34a"/><text x="340" y="440">4</text>
     <circle cx="340" cy="345" r="13" fill="#16a34a"/><text x="340" y="350">5</text>
-    <circle cx="340" cy="250" r="13" fill="#dc2626"/><text x="340" y="255">6</text>
-    <circle cx="270" cy="193" r="13" fill="#dc2626"/><text x="270" y="198">7</text>
+    <circle cx="340" cy="250" r="13" fill="#16a34a"/><text x="340" y="255">6</text>
+    <circle cx="270" cy="193" r="13" fill="#16a34a"/><text x="270" y="198">7</text>
     <circle cx="190" cy="100" r="13" fill="#16a34a"/><text x="190" y="105">8</text>
   </g>
 
@@ -52,11 +52,10 @@
     <text x="380" y="92"><tspan font-weight="700" fill="#15803d">8</tspan>  라인트레이싱 :</text>
     <text x="398" y="112">선을 찾으면 다시 선 따라가기</text>
 
-    <text x="380" y="172"><tspan font-weight="700" fill="#dc2626">7</tspan>  직진 : 비스듬히 가면서</text>
+    <text x="380" y="172"><tspan font-weight="700" fill="#15803d">7</tspan>  직진 : 비스듬히 가면서</text>
     <text x="398" y="192">라인 찾기</text>
 
-    <text x="380" y="252"><tspan font-weight="700" fill="#dc2626">6</tspan>  45° 꺾기 : 선 쪽으로 틀기</text>
-    <text x="398" y="274" font-size="13" fill="#dc2626">※ 6번부터 아직 잘 안 됨 (반대로 꺾음)</text>
+    <text x="380" y="252"><tspan font-weight="700" fill="#15803d">6</tspan>  45° 꺾기 : 선 쪽으로 틀기</text>
 
     <text x="380" y="332"><tspan font-weight="700" fill="#15803d">5</tspan>  지나가기 : 옆을 서보로 보며</text>
     <text x="398" y="352">조금 전진 → 정지 → 측정 반복</text>

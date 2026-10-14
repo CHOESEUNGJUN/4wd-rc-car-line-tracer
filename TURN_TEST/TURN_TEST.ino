@@ -12,8 +12,8 @@
  */
 
 // --- 맞출 값 (ms) ---
-int RIGHT_90_MS = 650;
-int LEFT_90_MS  = 700;
+int RIGHT_90_MS = 550;
+int LEFT_90_MS  = 900;
 int RIGHT_45_MS = 500;
 int LEFT_45_MS  = 500;
 
