@@ -72,7 +72,12 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 
 // --- 기타 ---
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
-unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지
+// --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
+//   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
+int SWAY_START_MS = 150;            // 처음 흔드는 폭 (도는 시간)
+int SWAY_GROW_MS  = 100;            // 한 번 흔들 때마다 늘어나는 폭
+int SWAY_SPEED    = 150;            // 흔들 때 회전 속도
+unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
 
 // ============================================================
 // [핀]
@@ -86,8 +91,8 @@ int trigPin = 13, echoPin = 12, servoPin = 2;      // 초음파, 서보
 // ============================================================
 Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터 제어)
-unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
-bool searchLine = false;           // 회피 직후 선이 안 보이면 전진하며 찾기
+bool lostStopped = false;          // 흔들어서 찾다가 못 찾고 멈춘 상태
+int lastSide = 0;                  // 마지막으로 선이 있던 쪽 (-1 왼쪽, +1 오른쪽, 0 가운데) : 놓치면 이쪽부터 흔듦
 unsigned long lastPing = 0;
 int obstLeftMM = 0, obstRightMM = 0;   // 잰 장애물 폭 (정면 기준 왼쪽 / 오른쪽)
 
@@ -120,8 +125,7 @@ bool checkObstacle(int d) {
   int d2 = Ultrasonic();
   if (d2 < AVOID_MM) avoidMode(d2);   // 다시 재도 가까우면 진짜 장애물
   last_state = -1;                    // 라인 상태 처음부터 다시 판단
-  lost_since = 0;
-  searchLine = true;
+  lostStopped = false;
   return true;
 }
 
@@ -131,14 +135,18 @@ bool checkObstacle(int d) {
 void followLine() {
   int L = digitalRead(L_Line), C = digitalRead(C_Line), R = digitalRead(R_Line);
 
-  if (L == 1 && C == 1 && R == 1) {          // 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
-    if (searchLine) { searchLine = false; goForward(); }   // 회피 직후면 전진하며 찾기
-    if (lost_since == 0) lost_since = millis();
-    if (millis() - lost_since >= LOST_STOP_MS) { stopCar(); lost_since = millis(); last_state = -1; }
+  if (L == 1 && C == 1 && R == 1) {   // 선 놓침 -> 좌우로 흔들며 찾기
+    if (lostStopped) return;                   // 이미 흔들어 봤는데 못 찾고 멈춘 상태
+    if (swaySearch()) { last_state = -1; return; }
+    lostStopped = true;
+    last_state = -1;
     return;
   }
-  lost_since = 0;
-  searchLine = false;
+  lostStopped = false;
+
+  if (L == 1 && R == 0) lastSide = -1;       // 왼쪽으로 보정하는 상태 (선이 왼쪽)
+  if (L == 0 && R == 1) lastSide = +1;       // 오른쪽으로 보정하는 상태 (선이 오른쪽)
+  if (L == 1 && C == 0 && R == 1) lastSide = 0;
 
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return;
@@ -362,6 +370,23 @@ void keepDistance(int sideOff, int ds, int keepMM) {
 }
 
 bool centerOnLine() { return digitalRead(C_Line) == 0; }   // 가운데 센서가 흰 선 위
+
+// 선 놓침 : 제자리에서 좌우로 머리를 흔들며 찾기. 찾으면 true
+//   마지막으로 선을 본 쪽부터 (모르면 왼쪽부터), 가운데를 지나 반대쪽으로 갈 때마다 폭을 SWAY_GROW_MS 씩 넓힘
+bool swaySearch() {
+  bool toRight = (lastSide > 0);
+  int prevAmp = 0, amp = SWAY_START_MS;
+  unsigned long start = millis();
+  while (millis() - start < SWAY_MAX_MS) {
+    spin(toRight, SWAY_SPEED);
+    if (runUntilAny(prevAmp + amp)) { stopCar(); return true; }
+    toRight = !toRight;
+    prevAmp = amp;
+    amp += SWAY_GROW_MS;
+  }
+  stopCar();
+  return false;
+}
 
 void turn90(bool toRight) { turn(toRight, toRight ? TURN_RIGHT_90_MS : TURN_LEFT_90_MS); }
 void turn45(bool toRight) { turn(toRight, toRight ? TURN_RIGHT_45_MS : TURN_LEFT_45_MS); }
