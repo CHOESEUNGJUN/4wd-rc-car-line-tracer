@@ -35,7 +35,6 @@ long ECHO_WAIT_US = 12000; // 초음파 메아리 기다리는 최대 시간 (�
 // --- 차 움직임 보정 (회피할 때 "몇 mm 가라 / 90도 돌아라" 를 시간으로 바꾸는 값) ---
 //   직접 재서 맞추면 회피가 정확해짐. 건전지 약해지면 다시 맞춰야 함
 int MM_PER_SEC = 250;      // SPEED 로 1초에 가는 거리(mm).  회피 때 너무 멀리 가면 올리고, 덜 가면 내리기
-int TURN_90_MS = 600;      // 제자리에서 90도 도는 데 걸리는 시간(ms).  덜 돌면 올리고, 더 돌면 내리기
 int TURN_PAUSE_MS = 100;   // 돌고 나서 잠깐 멈춰 있는 시간 (차가 흔들리면 늘리기)
 int SETTLE_MS     = 150;   // 전진하다 멈춘 뒤, 차가 완전히 설 때까지 기다리는 시간 (재기 전에 흔들리면 늘리기)
 
@@ -49,8 +48,13 @@ int OBST_EXTRA_MM  = 150;  // 정면 거리 + 이 값 안쪽으로 보이면 "�
 // --- 회피 방향 (테스트용) ---
 int AVOID_SIDE = 0;        // 0 = 자동(짧은 쪽),  1 = 무조건 오른쪽 회피,  2 = 무조건 왼쪽 회피
 
-// --- 회피 2단계 : 빈 쪽으로 돌기 ---
-int AVOID_TURN_DEG = 90;   // 빈 쪽으로 확실하게 도는 각도 (90, 80, 60 ... 덜/더 돌면 TURN_90_MS 보정)
+// --- 회피 회전 (멈춘 상태에서 제자리 회전) ---
+//   TURN_TEST.ino 로 직접 재서 맞춘 값. 각도가 안 맞으면 여기만 고치기
+int AVOID_TURN_SPEED = 170;    // 회피 회전 속도. 멈춘 상태에서 돌기 시작하므로 라인 보정(TURN_SPEED)보다 세게
+int TURN_RIGHT_90_MS = 650;    // 오른쪽 90도 (ms)
+int TURN_LEFT_90_MS  = 700;    // 왼쪽   90도 (ms)
+int TURN_RIGHT_45_MS = 500;    // 오른쪽 45도 (ms)
+int TURN_LEFT_45_MS  = 500;    // 왼쪽   45도 (ms)
 int SIDE_MAX_MM    = 400;  // (크기 잴 때) 장애물 끝이 안 보이면 이 값으로 침
 
 // --- 회피 3단계 : 장애물을 옆에 두고 지나가기 (두 번 반복 : 옆면 -> 돌기 -> 뒷면까지) ---
@@ -64,7 +68,6 @@ int PASS_MAX_MM    = 900;  // 한 구간에서 최대 이만큼만 감 (끝없�
 int LEG2_MIN_MM    = 100;  // 두 번째 구간 : 장애물 옆에 닿기 전이라 처음엔 안 보임 -> 최소 (정면거리 + 이 값)은 가고 나서 판단
 
 // --- 회피 4단계 : 비스듬히 선으로 돌아오기 ---
-int RETURN_TURN_DEG = 45;  // 선 쪽으로 비스듬히 도는 각도
 int RETURN_MAX_MM   = 700; // 선 찾으며 직진하는 최대 거리
 int LINE_OVER_MM    = 120; // 선 발견 후 : 가운데 센서가 선을 넘어갈 때까지 더 전진하는 최대 거리
 int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 시간 (가운데 센서가 선을 보면 바로 멈춤). 90도 조금 넘게만
@@ -232,90 +235,80 @@ void followLine() {
 }
 
 // ============================================================
-// 회피 모드 : 장애물 크기를 먼저 재고(저장), 그 크기만큼 돌아서 지나감
-//   1. 크기 재서 방향 정하기  2. 빈 쪽으로 돌기  3. 장애물을 옆에 두고 지나가기(2번)  4. 비스듬히 선으로 복귀
+// 회피 모드 : 단계(step)를 1 -> 8 순서로 하나씩 진행 (README 그림 번호와 같음)
+//   1 폭 재기  2 돌기  3 옆으로 나가기  4 다시 돌기  5 지나가기  6 45도 꺾기  7 직진하며 라인 찾기  8 라인트레이싱
+//   toRight = true  : 오른쪽으로 피함 (장애물은 왼쪽)
+//   toRight = false : 왼쪽으로 피함   (장애물은 오른쪽)
 // ============================================================
 void avoidMode(int d0) {           // d0 = 장애물까지 정면 거리(mm)
-  stopCar();
+  bool toRight = true;
+  int  sideOff = 0;                // 서보가 볼 방향 (장애물 쪽)
+  int  widthMM = 0;                // 3번에서 옆으로 간 거리
 
-  // ---- 1. 장애물 크기 재서 어느 쪽으로 갈지 정하기 ----
-  measureObstacle(d0);
-  bool toRight = (obstRightMM <= obstLeftMM);          // 짧은 쪽으로 돌아감
-  if (AVOID_SIDE == 1) toRight = true;                 // 테스트용 : 방향 고정
-  if (AVOID_SIDE == 2) toRight = false;
+  int step = 1;
+  while (step != 0) {              // 0 = 회피 끝
+    switch (step) {
 
-  Serial.print(F("[회피 1] 장애물 왼쪽 ")); Serial.print(obstLeftMM);
-  Serial.print(F(" / 오른쪽 "));           Serial.print(obstRightMM);
-  Serial.println(F(" mm"));
+      case 1:  // ---- 폭 재기 : 정지, 서보로 좌우를 훑어 폭 저장, 방향 정하기 ----
+        stopCar();
+        measureObstacle(d0);
+        Serial.print(F("[1 폭 재기] 왼쪽 ")); Serial.print(obstLeftMM);
+        Serial.print(F(" / 오른쪽 "));        Serial.print(obstRightMM); Serial.println(F(" mm"));
+        if (obstLeftMM == 0 && obstRightMM == 0) {     // 아무것도 없음 = 가짜 감지
+          Serial.println(F("[1] 장애물 안 보임 -> 회피 취소"));
+          step = 0;
+          break;
+        }
+        toRight = (obstRightMM <= obstLeftMM);          // 짧은 쪽으로
+        if (AVOID_SIDE == 1) toRight = true;            // 테스트용 : 방향 고정
+        if (AVOID_SIDE == 2) toRight = false;
+        sideOff = toRight ? -SIDE_LOOK_DEG : SIDE_LOOK_DEG;
+        Serial.println(toRight ? F("[1] -> 오른쪽으로 회피") : F("[1] -> 왼쪽으로 회피"));
+        step = 2;
+        break;
 
-  if (obstLeftMM == 0 && obstRightMM == 0) {           // 훑어봤는데 아무것도 없음 = 가짜 감지
-    Serial.println(F("[회피 1] 장애물 안 보임 -> 회피 취소"));
-    return;
-  }
+      case 2:  // ---- 돌기 : 빈 쪽으로 90도 ----
+        Serial.print(F("[2 돌기] "));
+        turn90(toRight);
+        step = 3;
+        break;
 
-  if (toRight) avoidRight(d0);
-  else         avoidLeft(d0);
-}
+      case 3:  // ---- 옆으로 나가기 : 저장한 폭 + 여유만큼은 무조건 직진, 옆에 보이면 더 ----
+        widthMM = passObstacle(sideOff, (toRight ? obstRightMM : obstLeftMM) + SIDE_MARGIN_MM,
+                               d0 + SIDE_SEEN_EXTRA_MM);
+        Serial.print(F("[3 옆으로 나가기] 간 거리 ")); Serial.println(widthMM);
+        step = 4;
+        break;
 
-// ------------------------------------------------------------
-// 오른쪽 회피 : 오른쪽으로 돌면 장애물은 "왼쪽"에 있음
-// ------------------------------------------------------------
-void avoidRight(int d0) {
-  Serial.println(F("=== 오른쪽 회피 ==="));
+      case 4:  // ---- 다시 돌기 : 장애물 쪽으로 90도 (원래 진행 방향) ----
+        Serial.print(F("[4 다시 돌기] "));
+        turn90(!toRight);
+        step = 5;
+        break;
 
-  // 2. 오른쪽으로 확실하게 돌기
-  turnRightDeg(AVOID_TURN_DEG);
-  Serial.println(F("[R 2] 오른쪽으로 돎 (장애물은 왼쪽)"));
+      case 5:  // ---- 지나가기 : 옆을 보며 조금 전진 -> 정지 -> 측정, 안 보일 때까지 ----
+        Serial.print(F("[5 지나가기] 간 거리 "));
+        Serial.println(passObstacle(sideOff, d0 + LEG2_MIN_MM, widthMM + SIDE_SEEN_EXTRA_MM));
+        lookAt(0, SERVO_BIG_MS);                        // 서보 정면으로
+        step = 6;
+        break;
 
-  // 3-1. 왼쪽을 보면서 : 보이면 살짝 전진, 안 보이면 끝
-  //      저장해 둔 장애물 폭(obstRightMM) + 여유만큼은 무조건 직진
-  int widthMM = passObstacle(-SIDE_LOOK_DEG, obstRightMM + SIDE_MARGIN_MM,
-                             d0 + SIDE_SEEN_EXTRA_MM);
-  Serial.print(F("[R 3-1] 옆으로 다 나감. 간 거리 ")); Serial.println(widthMM);
+      case 6:  // ---- 45도 꺾기 : 선 쪽(장애물 쪽)으로 ----
+        Serial.print(F("[6 45도 꺾기] "));
+        turn45(!toRight);
+        step = 7;
+        break;
 
-  // 3-2. 왼쪽으로 돌기 -> 장애물은 또 왼쪽 -> 같은 방식으로 지나감
-  turnLeftDeg(AVOID_TURN_DEG);
-  int depthMM = passObstacle(-SIDE_LOOK_DEG, d0 + LEG2_MIN_MM,
-                             widthMM + SIDE_SEEN_EXTRA_MM);
-  Serial.print(F("[R 3-2] 장애물 지나감. 간 거리 ")); Serial.println(depthMM);
-  lookAt(0, SERVO_BIG_MS);                             // 서보 정면으로
+      case 7:  // ---- 직진하며 라인 찾기 ----
+        step = findLine() ? 8 : 0;                      // 못 찾으면 회피 끝 (라인 주행이 전진하며 찾음)
+        break;
 
-  // 4. 왼쪽으로 비스듬히 돌고, 선 찾으면서 직진
-  turnLeftDeg(RETURN_TURN_DEG);
-  if (findLine()) {                                    // 선 만나면 오른쪽으로 돌아 원래 방향
-    spinRight();
-    waitCenterOnLine();
-  }
-}
-
-// ------------------------------------------------------------
-// 왼쪽 회피 : 왼쪽으로 돌면 장애물은 "오른쪽"에 있음  (오른쪽 회피를 좌우만 뒤집은 것)
-// ------------------------------------------------------------
-void avoidLeft(int d0) {
-  Serial.println(F("=== 왼쪽 회피 ==="));
-
-  // 2. 왼쪽으로 확실하게 돌기
-  turnLeftDeg(AVOID_TURN_DEG);
-  Serial.println(F("[L 2] 왼쪽으로 돎 (장애물은 오른쪽)"));
-
-  // 3-1. 오른쪽을 보면서 : 보이면 살짝 전진, 안 보이면 끝
-  //      저장해 둔 장애물 폭(obstLeftMM) + 여유만큼은 무조건 직진
-  int widthMM = passObstacle(SIDE_LOOK_DEG, obstLeftMM + SIDE_MARGIN_MM,
-                             d0 + SIDE_SEEN_EXTRA_MM);
-  Serial.print(F("[L 3-1] 옆으로 다 나감. 간 거리 ")); Serial.println(widthMM);
-
-  // 3-2. 오른쪽으로 돌기 -> 장애물은 또 오른쪽 -> 같은 방식으로 지나감
-  turnRightDeg(AVOID_TURN_DEG);
-  int depthMM = passObstacle(SIDE_LOOK_DEG, d0 + LEG2_MIN_MM,
-                             widthMM + SIDE_SEEN_EXTRA_MM);
-  Serial.print(F("[L 3-2] 장애물 지나감. 간 거리 ")); Serial.println(depthMM);
-  lookAt(0, SERVO_BIG_MS);                             // 서보 정면으로
-
-  // 4. 오른쪽으로 비스듬히 돌고, 선 찾으면서 직진
-  turnRightDeg(RETURN_TURN_DEG);
-  if (findLine()) {                                    // 선 만나면 왼쪽으로 돌아 원래 방향
-    spinLeft();
-    waitCenterOnLine();
+      case 8:  // ---- 라인트레이싱 : 원래 방향으로 돌아 선 위에 정렬 후 라인 주행으로 ----
+        spin(toRight, AVOID_TURN_SPEED);               // 멈춘 상태에서 도니까 회피 회전 속도로
+        waitCenterOnLine();
+        step = 0;
+        break;
+    }
   }
 }
 
@@ -323,10 +316,10 @@ void avoidLeft(int d0) {
 //   (비스듬히 들어오면 옆 센서가 먼저 선을 봄. 가운데 센서가 선을 넘어가야, 그 뒤에 돌 때 선을 다시 만남)
 bool findLine() {
   if (!moveMM(RETURN_MAX_MM, true)) {
-    Serial.println(F("[4] 선 못 찾음 -> 전진하며 찾기"));
+    Serial.println(F("[7] 선 못 찾음 -> 전진하며 찾기"));
     return false;
   }
-  Serial.print(F("[4] 선 발견 (라인 ")); printLine(); Serial.println(F(") -> 가운데 센서가 넘어갈 때까지 전진"));
+  Serial.print(F("[7 라인 찾기] 선 발견 (라인 ")); printLine(); Serial.println(F(") -> 가운데 센서가 넘어갈 때까지 전진"));
 
   unsigned long maxMs = (unsigned long)LINE_OVER_MM * 1000UL / MM_PER_SEC;
   unsigned long start = millis();
@@ -338,8 +331,8 @@ bool findLine() {
   }
   stopCar();
   delay(SETTLE_MS);
-  if (centerSeen) Serial.println(F("[4] 가운데 센서 선 넘어감 -> 원래 방향으로 돌기"));
-  else            Serial.println(F("[4] 가운데 센서가 선을 못 봄 (LINE_OVER_MM 늘리기) -> 그래도 돌기"));
+  if (centerSeen) Serial.println(F("[7] 가운데 센서 선 넘어감"));
+  else            Serial.println(F("[7] 가운데 센서가 선을 못 봄 (LINE_OVER_MM 늘리기)"));
   return true;
 }
 
@@ -351,8 +344,8 @@ void waitCenterOnLine() {
     if (digitalRead(C_Line) == 0) { found = true; break; }
   }
   stopCar();
-  if (found) Serial.println(F("[4] 선 위에 정렬됨 -> 라인 주행"));
-  else       Serial.println(F("[4] 돌았는데 선을 못 만남 -> 라인 주행으로 넘김"));
+  if (found) Serial.println(F("[8 라인트레이싱] 선 위에 정렬됨 -> 라인 주행"));
+  else       Serial.println(F("[8] 돌았는데 선을 못 만남 -> 라인 주행으로 넘김"));
 }
 
 // 장애물을 옆에 두고 지나가기 : 옆을 봄 -> 보이면 살짝 전진 -> 또 봄 -> 안 보이면 끝
@@ -426,18 +419,22 @@ bool moveMM(int mm, bool watchLine) {
   return false;
 }
 
-void turnRightDeg(int deg) {       // 제자리에서 오른쪽으로 deg 도 돌고 멈춤 (TURN_90_MS 기준)
-  spinRight();
-  delay((unsigned long)TURN_90_MS * deg / 90);
+void turn90(bool toRight) { turn(toRight, toRight ? TURN_RIGHT_90_MS : TURN_LEFT_90_MS); }
+void turn45(bool toRight) { turn(toRight, toRight ? TURN_RIGHT_45_MS : TURN_LEFT_45_MS); }
+
+void turn(bool toRight, int ms) {   // 멈춘 상태에서 제자리로 ms 만큼 돌고 멈춤 (회피용 속도)
+  Serial.print(toRight ? F("오른쪽 ") : F("왼쪽 ")); Serial.print(ms); Serial.println(F(" ms"));
+  stopCar();
+  spin(toRight, AVOID_TURN_SPEED);
+  delay(ms);
   stopCar();
   delay(TURN_PAUSE_MS);
 }
 
-void turnLeftDeg(int deg) {        // 제자리에서 왼쪽으로 deg 도 돌고 멈춤
-  spinLeft();
-  delay((unsigned long)TURN_90_MS * deg / 90);
-  stopCar();
-  delay(TURN_PAUSE_MS);
+void spin(bool toRight, int speed) {  // 제자리 회전 시작 (멈추지 않음)
+  action = toRight ? "우회전" : "좌회전";
+  if (toRight) drive(LOW, HIGH, speed, speed);   // 오른쪽 뒤, 왼쪽 앞
+  else         drive(HIGH, LOW, speed, speed);   // 오른쪽 앞, 왼쪽 뒤
 }
 
 bool onLine() {                    // 라인센서 중 하나라도 흰 선(0)을 보면 true
