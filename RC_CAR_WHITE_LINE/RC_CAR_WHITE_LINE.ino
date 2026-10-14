@@ -20,12 +20,6 @@ float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
 int CURVE_MIN_SPEED  = 50;    // 살짝 보정 : 안쪽 바퀴 최저 속도
 
-// --- 좌우 바퀴 속도 보정 (같은 값을 줘도 모터마다 힘이 달라서) ---
-//   직진시켜서 한쪽으로 휘면 느린 쪽에 더하기. 오른쪽으로 휘면 오른쪽이 느린 것
-int RIGHT_TRIM = 0;           // 오른쪽 바퀴에 더할 속도
-int LEFT_TRIM  = 13;          // 왼쪽 바퀴에 더할 속도 (11 이면 오른쪽, 15 면 왼쪽으로 쏠림)
-int AVOID_FWD_LEFT_EXTRA = 10; // 회피 중 직진(멈췄다 출발)만 왼쪽 바퀴에 더 더할 속도. 회피 직진이 오른쪽으로 휘면 올리기
-
 // --- 회피 회전 시간 (ms) ※ 차마다 다름. TURN_TEST.ino 로 재서 맞추기 ---
 int TURN_RIGHT_90_MS = 550;
 int TURN_LEFT_90_MS  = 900;
@@ -216,7 +210,7 @@ bool findLine() {
   if (!moveMs(RETURN_MAX_MS, true)) return false;
   unsigned long start = millis();
   bool centerSeen = false;
-  avoidForward();
+  goForward();
   while (millis() - start < (unsigned long)LINE_OVER_MS) {
     if (digitalRead(C_Line) == 0) centerSeen = true;
     else if (centerSeen) break;    // 선 위였다가 벗어남 = 넘어감
@@ -284,7 +278,7 @@ int msToMm(int ms) { return (long)ms * MM_PER_SEC / 1000; }
 
 // ms 동안 전진하고 멈춤. watchLine 이면 가는 중 선 보이면 멈추고 true
 bool moveMs(int ms, bool watchLine) {
-  avoidForward();
+  goForward();
   bool found = false;
   if (watchLine) found = runUntilAny(ms);
   else           delay(ms);
@@ -324,7 +318,6 @@ void spin(bool toRight, int speed) {     // 제자리 회전 (오른쪽 : 오른
 }
 
 void goForward()  { drive(HIGH, HIGH, SPEED, SPEED); }
-void avoidForward() { drive(HIGH, HIGH, SPEED, SPEED + AVOID_FWD_LEFT_EXTRA); }   // 회피 중 직진 (멈췄다 출발)
 void stopCar()    { drive(HIGH, HIGH, 0, 0); }
 void curveLeft()  { drive(HIGH, HIGH, min(SPEED * CURVE_FAST, 255), max(SPEED * CURVE_SLOW, CURVE_MIN_SPEED)); }
 void curveRight() { drive(HIGH, HIGH, max(SPEED * CURVE_SLOW, CURVE_MIN_SPEED), min(SPEED * CURVE_FAST, 255)); }
@@ -334,6 +327,6 @@ void drive(int rightDir, int leftDir, int rightSpeed, int leftSpeed) {   // 방�
   digitalWrite(RightMotor_2_pin, !rightDir);
   digitalWrite(LeftMotor_3_pin, leftDir);
   digitalWrite(LeftMotor_4_pin, !leftDir);
-  analogWrite(RightMotor_E_pin, rightSpeed == 0 ? 0 : constrain(rightSpeed + RIGHT_TRIM, 0, 255));
-  analogWrite(LeftMotor_E_pin,  leftSpeed  == 0 ? 0 : constrain(leftSpeed  + LEFT_TRIM,  0, 255));
+  analogWrite(RightMotor_E_pin, rightSpeed);
+  analogWrite(LeftMotor_E_pin, leftSpeed);
 }

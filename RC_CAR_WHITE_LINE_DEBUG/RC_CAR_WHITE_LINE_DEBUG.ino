@@ -27,12 +27,6 @@ float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (�
 
 int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
 
-// --- 좌우 바퀴 속도 보정 (같은 값을 줘도 모터마다 힘이 달라서) ---
-//   직진시켜서 한쪽으로 휘면 느린 쪽에 더하기. 오른쪽으로 휘면 오른쪽이 느린 것
-int RIGHT_TRIM = 0;           // 오른쪽 바퀴에 더할 속도
-int LEFT_TRIM  = 13;          // 왼쪽 바퀴에 더할 속도 (11 이면 오른쪽, 15 면 왼쪽으로 쏠림)
-int AVOID_FWD_LEFT_EXTRA = 10; // 회피 중 직진(멈췄다 출발)만 왼쪽 바퀴에 더 더할 속도. 회피 직진이 오른쪽으로 휘면 올리기
-
 // --- 장애물 거리 (mm) ---
 int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈추고 회피 모드
 
@@ -61,8 +55,8 @@ int AVOID_SIDE = 0;        // 0 = 자동(짧은 쪽),  1 = 무조건 오른쪽 �
 //   TURN_TEST.ino 로 직접 재서 맞춘 값. 각도가 안 맞으면 여기만 고치기
 //   ※ 차마다 다름 (모터·바퀴·건전지·바닥). 다른 차에 올리면 TURN_TEST 로 다시 재기
 int AVOID_TURN_SPEED = 170;    // 회피 회전 속도. 멈춘 상태에서 돌기 시작하므로 라인 보정(TURN_SPEED)보다 세게
-int TURN_RIGHT_90_MS = 700;    // 오른쪽 90도 (ms)
-int TURN_LEFT_90_MS  = 700;    // 왼쪽   90도 (ms)
+int TURN_RIGHT_90_MS = 550;    // 오른쪽 90도 (ms)
+int TURN_LEFT_90_MS  = 900;    // 왼쪽   90도 (ms)
 int TURN_RIGHT_45_MS = 500;    // 오른쪽 45도 (ms)
 int TURN_LEFT_45_MS  = 500;    // 왼쪽   45도 (ms)
 int SIDE_MAX_MM    = 400;  // (크기 잴 때) 장애물 끝이 안 보이면 이 값으로 침
@@ -334,7 +328,7 @@ bool findLine() {
   unsigned long maxMs = (unsigned long)LINE_OVER_MM * 1000UL / MM_PER_SEC;
   unsigned long start = millis();
   bool centerSeen = false;
-  avoidForward();
+  goForward();
   while (millis() - start < maxMs) {
     if (digitalRead(C_Line) == 0) centerSeen = true;   // 가운데 센서가 선 위
     else if (centerSeen) break;                        // 선 위였다가 벗어남 = 넘어감
@@ -421,7 +415,7 @@ int lookAt(int offset, int waitMs) {
 bool moveMM(int mm, bool watchLine) {
   unsigned long ms = (unsigned long)mm * 1000UL / MM_PER_SEC;
   unsigned long start = millis();
-  avoidForward();
+  goForward();
   while (millis() - start < ms) {
     if (watchLine && onLine()) { stopCar(); return true; }
   }
@@ -467,7 +461,6 @@ int Ultrasonic() {                 // 앞 장애물까지 거리(mm). 없으면 
 // 기본 동작
 // ============================================================
 void goForward()  { action = "직진";   drive(HIGH, HIGH, SPEED, SPEED); }            // 직진
-void avoidForward() { action = "회피 직진"; drive(HIGH, HIGH, SPEED, SPEED + AVOID_FWD_LEFT_EXTRA); }  // 회피 중 직진 (멈췄다 출발)
 void spinLeft()   { action = "좌회전"; drive(HIGH, LOW,  TURN_SPEED, TURN_SPEED); }  // 제자리 좌회전 (오른쪽 앞, 왼쪽 뒤)
 void spinRight()  { action = "우회전"; drive(LOW,  HIGH, TURN_SPEED, TURN_SPEED); }  // 제자리 우회전 (오른쪽 뒤, 왼쪽 앞)
 void stopCar()    { action = "정지";   drive(HIGH, HIGH, 0, 0); }                    // 정지
@@ -488,6 +481,6 @@ void drive(int rightDir, int leftDir, int rightSpeed, int leftSpeed) {
   digitalWrite(LeftMotor_3_pin, leftDir);
   digitalWrite(LeftMotor_4_pin, !leftDir);
 
-  analogWrite(RightMotor_E_pin, rightSpeed == 0 ? 0 : constrain(rightSpeed + RIGHT_TRIM, 0, 255));
-  analogWrite(LeftMotor_E_pin,  leftSpeed  == 0 ? 0 : constrain(leftSpeed  + LEFT_TRIM,  0, 255));
+  analogWrite(RightMotor_E_pin, rightSpeed);
+  analogWrite(LeftMotor_E_pin, leftSpeed);
 }
