@@ -20,7 +20,7 @@ float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
 int CURVE_MIN_SPEED  = 50;    // 살짝 보정 : 안쪽 바퀴 최저 속도
 
-// --- 회피 회전 시간 (ms) ※ 차마다 다름. TURN_TEST.ino 로 재서 맞추기 ---
+// --- 회피 회전 시간 (ms) ※ 차마다 다름. TURN_TEST_WHITE_LINE.ino 로 재서 맞추기 ---
 int TURN_RIGHT_90_MS = 550;
 int TURN_LEFT_90_MS  = 900;
 int TURN_RIGHT_45_MS = 500;

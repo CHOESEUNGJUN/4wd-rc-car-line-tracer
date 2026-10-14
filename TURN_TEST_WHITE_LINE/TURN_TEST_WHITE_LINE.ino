@@ -1,4 +1,5 @@
-/* 회전 시간 맞추기 테스트 (본 코드와 같은 모터 배선)
+/* 회전 시간 맞추기 테스트 [흰 선 버전 : 어두운 책상 + 흰 테이프] (본 코드와 같은 모터 배선)
+ *  밝은 책상 + 검은 테이프로 재려면 TURN_TEST_BLACK_LINE.ino 를 쓰세요.
  *
  *  시리얼 모니터 9600 baud, 한 글자씩 보내기
  *    c : 자동 측정 (* 모양 테이프 위에서 오른쪽, 왼쪽으로 여러 바퀴 돌며 평균)
@@ -14,7 +15,7 @@
  *    -> r / l / e / q 로 실제로 돌려보고 확인
  *
  *  손으로 맞출 때는 차 바닥에 테이프로 방향 표시하고, 돌려보면서 +/- 로 맞춘 뒤
- *  마지막에 p 로 나온 숫자를 RC_CAR_WHITE_LINE/RC_CAR_WHITE_LINE.ino 의 TURN_RIGHT_90_MS / TURN_LEFT_90_MS /
+ *  마지막에 p 로 나온 숫자를 RC_CAR_WHITE_LINE (흰 선) 주행용 / 디버그용의 TURN_RIGHT_90_MS / TURN_LEFT_90_MS /
  *  TURN_RIGHT_45_MS / TURN_LEFT_45_MS 에 옮겨 적기
  */
 
@@ -28,7 +29,7 @@ int TURN_SPEED = 170;      // 본 코드의 AVOID_TURN_SPEED 와 같게 (멈춘 
 int STEP_MS    = 20;       // +/- 한 번에 바뀌는 양
 
 // --- 자동 측정 (c) ---
-int TAPE_IS_WHITE = 1;     // 어두운 책상 + 흰 테이프 = 1, 밝은 책상 + 검은 테이프 = 0
+int TAPE_IS_WHITE = 1;     // 흰 선 버전 : 어두운 책상 + 흰 테이프
 int CAL_REVS      = 10;    // 몇 바퀴 돌며 평균 낼지 (많을수록 정확, 오래 걸림)
 int CAL_RAYS      = 8;     // * 모양 갈래 수 (테이프 4줄 = 8갈래 = 45도마다)
 int CAL_WAIT_MS   = 2000;  // 이 시간 안에 다음 테이프를 못 만나면 측정 실패
@@ -54,7 +55,7 @@ void setup() {
   stopCar();
 
   Serial.begin(9600);
-  Serial.println(F("=== 회전 시간 테스트 ==="));
+  Serial.println(F("=== 회전 시간 테스트 (흰 선 : 어두운 책상 + 흰 테이프) ==="));
   Serial.println(F("c : 자동 측정(* 테이프)   r/l : 오른쪽/왼쪽 90도   e/q : 오른쪽/왼쪽 45도   +/- : 20ms 조절   p : 값 출력"));
   printAll();
 }
