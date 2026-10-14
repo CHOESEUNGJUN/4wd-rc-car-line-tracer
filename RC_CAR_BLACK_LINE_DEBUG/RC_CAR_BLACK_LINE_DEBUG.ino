@@ -79,6 +79,7 @@ int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 
 
 // --- 선을 놓쳤을 때 ---
 unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지 (20000 = 20초)
+unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(0,?,0) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // --- 서보 ---
 int SERVO_CENTER = 90;     // 정면 각도
@@ -108,6 +109,7 @@ int servoPin = 2;            // 서보
 Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터/출력)
 unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
+unsigned long both_since = 0;      // 양쪽 센서가 동시에 선을 보기 시작한 시각 (0 = 아님)
 int obstLeftMM  = 0;               // 저장한 장애물 폭 : 정면 기준 왼쪽으로 뻗은 길이
 int obstRightMM = 0;               //                     오른쪽으로 뻗은 길이
 const char* action = "정지";       // 지금 하고 있는 동작 (디버그용)
@@ -222,6 +224,14 @@ void followLine() {
   }
   lost_since = 0;
   searchLine = false;
+
+  // 0,?,0 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
+  //         (검은 선이 넓으면 중앙에서 살짝만 벗어나도 잠깐씩 나옴)
+  if (L == 0 && R == 0) {
+    if (both_since == 0) both_since = millis();
+    if (millis() - both_since < LINE_GRACE_MS) return;
+  }
+  else both_since = 0;
 
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return; // 상태 그대로면 아무것도 안 함

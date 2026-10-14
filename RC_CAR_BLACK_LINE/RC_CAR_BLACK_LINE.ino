@@ -64,6 +64,7 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 // --- 기타 ---
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
 unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지
+unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(0,?,0) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // ============================================================
 // [핀]
@@ -78,6 +79,7 @@ int trigPin = 13, echoPin = 12, servoPin = 2;      // 초음파, 서보
 Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터 제어)
 unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
+unsigned long both_since = 0;      // 양쪽 센서가 동시에 선을 보기 시작한 시각 (0 = 아님)
 bool searchLine = false;           // 회피 직후 선이 안 보이면 전진하며 찾기
 unsigned long lastPing = 0;
 int obstLeftMM = 0, obstRightMM = 0;   // 잰 장애물 폭 (정면 기준 왼쪽 / 오른쪽)
@@ -129,6 +131,14 @@ void followLine() {
   }
   lost_since = 0;
   searchLine = false;
+
+  // 0,?,0 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
+  //         (검은 선이 넓으면 중앙에서 살짝만 벗어나도 잠깐씩 나옴)
+  if (L == 0 && R == 0) {
+    if (both_since == 0) both_since = millis();
+    if (millis() - both_since < LINE_GRACE_MS) return;
+  }
+  else both_since = 0;
 
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return;
