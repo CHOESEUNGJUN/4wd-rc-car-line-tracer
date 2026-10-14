@@ -63,7 +63,7 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 
 // --- 기타 ---
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
-unsigned long LOST_STOP_MS = 2000;    // 선 놓침(0,0,0)이 이 시간 동안은 하던 동작 유지, 그 뒤 정지 (2000 = 2초)
+unsigned long LOST_STOP_MS = 2000;    // 선 놓침(0,0,0) : 이 시간 동안 마지막으로 선을 본 쪽으로 돌며 찾기, 그 뒤 정지 (2000 = 2초)
 unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // ============================================================
@@ -80,6 +80,7 @@ Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터 제어)
 unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
 unsigned long both_since = 0;      // 양쪽 센서가 동시에 선을 보기 시작한 시각 (0 = 아님)
+int lastSide = 0;                  // 마지막으로 선을 본 쪽 (-1 왼쪽, +1 오른쪽, 0 가운데) : 코너에서 놓치면 이쪽으로 돎
 bool searchLine = false;           // 회피 직후 선이 안 보이면 전진하며 찾기
 unsigned long lastPing = 0;
 int obstLeftMM = 0, obstRightMM = 0;   // 잰 장애물 폭 (정면 기준 왼쪽 / 오른쪽)
@@ -123,9 +124,13 @@ bool checkObstacle(int d) {
 void followLine() {
   int L = digitalRead(L_Line), C = digitalRead(C_Line), R = digitalRead(R_Line);
 
-  if (L == 0 && C == 0 && R == 0) {          // 0,0,0 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
+  if (L == 0 && C == 0 && R == 0) {          // 0,0,0 선 놓침 -> 마지막으로 본 쪽으로 돌며 찾기, LOST_STOP_MS 지나면 정지
     if (searchLine) { searchLine = false; goForward(); }   // 회피 직후면 전진하며 찾기
-    if (lost_since == 0) lost_since = millis();
+    if (lost_since == 0) {
+      lost_since = millis();
+      if (lastSide != 0) spin(lastSide > 0, TURN_SPEED);   // 코너에서 놓침 -> 마지막으로 본 쪽으로 크게 돌기
+      last_state = -1;
+    }
     if (millis() - lost_since >= LOST_STOP_MS) { stopCar(); lost_since = millis(); last_state = -1; }
     return;
   }
@@ -139,16 +144,20 @@ void followLine() {
   }
   else both_since = 0;
 
+  if (R == 1 && L == 0) lastSide = +1;       // 선이 오른쪽에 있었음
+  if (L == 1 && R == 0) lastSide = -1;       // 선이 왼쪽에 있었음
+  if (L == 0 && C == 1 && R == 0) lastSide = 0;
+
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return;
   last_state = state;
 
-  //   L  C  R
+  //   L  C  R      (끝 센서 하나만 보면 많이 벗어난 것 -> 크게, 가운데와 같이 보면 -> 살짝)
   if      (L == 0 && C == 1 && R == 0) goForward();             // 직진
-  else if (L == 0 && C == 1 && R == 1) spin(true, TURN_SPEED);  // 오른쪽 크게 보정
-  else if (L == 0 && C == 0 && R == 1) curveRight();            // 오른쪽 살짝 보정
-  else if (L == 1 && C == 1 && R == 0) spin(false, TURN_SPEED); // 왼쪽 크게 보정
-  else if (L == 1 && C == 0 && R == 0) curveLeft();             // 왼쪽 살짝 보정
+  else if (L == 0 && C == 1 && R == 1) curveRight();            // 오른쪽 살짝 보정
+  else if (L == 0 && C == 0 && R == 1) spin(true, TURN_SPEED);  // 오른쪽 크게 보정 (코너)
+  else if (L == 1 && C == 1 && R == 0) curveLeft();             // 왼쪽 살짝 보정
+  else if (L == 1 && C == 0 && R == 0) spin(false, TURN_SPEED); // 왼쪽 크게 보정 (코너)
   else if (L == 1 && R == 1)           stopCar();               // 정지
 }
 

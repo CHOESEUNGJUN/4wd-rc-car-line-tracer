@@ -78,7 +78,7 @@ int LINE_OVER_MM    = 120; // 선 발견 후 : 가운데 센서가 선을 넘어
 int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 시간 (가운데 센서가 선을 보면 바로 멈춤). 90도 조금 넘게만
 
 // --- 선을 놓쳤을 때 ---
-unsigned long LOST_STOP_MS = 2000;    // 선 놓침(0,0,0)이 이 시간 동안은 하던 동작 유지, 그 뒤 정지 (2000 = 2초)
+unsigned long LOST_STOP_MS = 2000;    // 선 놓침(0,0,0) : 이 시간 동안 마지막으로 선을 본 쪽으로 돌며 찾기, 그 뒤 정지 (2000 = 2초)
 unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // --- 서보 ---
@@ -110,6 +110,7 @@ Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터/출력)
 unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
 unsigned long both_since = 0;      // 양쪽 센서가 동시에 선을 보기 시작한 시각 (0 = 아님)
+int lastSide = 0;                  // 마지막으로 선을 본 쪽 (-1 왼쪽, +1 오른쪽, 0 가운데) : 코너에서 놓치면 이쪽으로 돎
 int obstLeftMM  = 0;               // 저장한 장애물 폭 : 정면 기준 왼쪽으로 뻗은 길이
 int obstRightMM = 0;               //                     오른쪽으로 뻗은 길이
 const char* action = "정지";       // 지금 하고 있는 동작 (디버그용)
@@ -213,7 +214,14 @@ void followLine() {                // 검은 선 버전 : 센서 값 그대로 �
       goForward();
       Serial.println(F("선 없음 -> 전진하며 찾기"));
     }
-    if (lost_since == 0) lost_since = millis();
+    if (lost_since == 0) {
+      lost_since = millis();
+      if (lastSide != 0) {                   // 코너에서 놓침 -> 마지막으로 본 쪽으로 크게 돌기
+        if (lastSide > 0) spinRight(); else spinLeft();
+        Serial.println(lastSide > 0 ? F("선 놓침 -> 오른쪽으로 돌며 찾기") : F("선 놓침 -> 왼쪽으로 돌며 찾기"));
+      }
+      last_state = -1;
+    }
     if (millis() - lost_since >= LOST_STOP_MS) {
       stopCar();
       Serial.println(F("선 없음 -> 정지"));
@@ -232,6 +240,10 @@ void followLine() {                // 검은 선 버전 : 센서 값 그대로 �
   }
   else both_since = 0;
 
+  if (R == 1 && L == 0) lastSide = +1;       // 선이 오른쪽에 있었음
+  if (L == 1 && R == 0) lastSide = -1;       // 선이 왼쪽에 있었음
+  if (L == 0 && C == 1 && R == 0) lastSide = 0;
+
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return; // 상태 그대로면 아무것도 안 함
   last_state = state;
@@ -243,10 +255,10 @@ void followLine() {                // 검은 선 버전 : 센서 값 그대로 �
 
   //   L  C  R                              동작
   if      (L == 0 && C == 1 && R == 0) { goForward();  Serial.println(F("직진")); }
-  else if (L == 0 && C == 1 && R == 1) { spinRight();  Serial.println(F("오른쪽 보정(크게)")); }
-  else if (L == 0 && C == 0 && R == 1) { curveRight(); Serial.println(F("오른쪽 보정(살짝)")); }
-  else if (L == 1 && C == 1 && R == 0) { spinLeft();   Serial.println(F("왼쪽 보정(크게)")); }
-  else if (L == 1 && C == 0 && R == 0) { curveLeft();  Serial.println(F("왼쪽 보정(살짝)")); }
+  else if (L == 0 && C == 1 && R == 1) { curveRight(); Serial.println(F("오른쪽 보정(살짝)")); }
+  else if (L == 0 && C == 0 && R == 1) { spinRight();  Serial.println(F("오른쪽 보정(크게, 코너)")); }
+  else if (L == 1 && C == 1 && R == 0) { curveLeft();  Serial.println(F("왼쪽 보정(살짝)")); }
+  else if (L == 1 && C == 0 && R == 0) { spinLeft();   Serial.println(F("왼쪽 보정(크게, 코너)")); }
   else if (L == 1 && R == 1)           { stopCar();    Serial.println(F("정지")); }
   else                                 { Serial.println(); }
 }
