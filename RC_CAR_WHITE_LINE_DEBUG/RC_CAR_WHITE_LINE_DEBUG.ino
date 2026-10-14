@@ -31,6 +31,7 @@ int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽
 //   직진시켜서 한쪽으로 휘면 느린 쪽에 더하기. 오른쪽으로 휘면 오른쪽이 느린 것
 int RIGHT_TRIM = 0;           // 오른쪽 바퀴에 더할 속도
 int LEFT_TRIM  = 13;          // 왼쪽 바퀴에 더할 속도 (11 이면 오른쪽, 15 면 왼쪽으로 쏠림)
+int AVOID_FWD_LEFT_EXTRA = 10; // 회피 중 직진(멈췄다 출발)만 왼쪽 바퀴에 더 더할 속도. 회피 직진이 오른쪽으로 휘면 올리기
 
 // --- 장애물 거리 (mm) ---
 int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈추고 회피 모드
@@ -333,7 +334,7 @@ bool findLine() {
   unsigned long maxMs = (unsigned long)LINE_OVER_MM * 1000UL / MM_PER_SEC;
   unsigned long start = millis();
   bool centerSeen = false;
-  goForward();
+  avoidForward();
   while (millis() - start < maxMs) {
     if (digitalRead(C_Line) == 0) centerSeen = true;   // 가운데 센서가 선 위
     else if (centerSeen) break;                        // 선 위였다가 벗어남 = 넘어감
@@ -420,7 +421,7 @@ int lookAt(int offset, int waitMs) {
 bool moveMM(int mm, bool watchLine) {
   unsigned long ms = (unsigned long)mm * 1000UL / MM_PER_SEC;
   unsigned long start = millis();
-  goForward();
+  avoidForward();
   while (millis() - start < ms) {
     if (watchLine && onLine()) { stopCar(); return true; }
   }
@@ -466,6 +467,7 @@ int Ultrasonic() {                 // 앞 장애물까지 거리(mm). 없으면 
 // 기본 동작
 // ============================================================
 void goForward()  { action = "직진";   drive(HIGH, HIGH, SPEED, SPEED); }            // 직진
+void avoidForward() { action = "회피 직진"; drive(HIGH, HIGH, SPEED, SPEED + AVOID_FWD_LEFT_EXTRA); }  // 회피 중 직진 (멈췄다 출발)
 void spinLeft()   { action = "좌회전"; drive(HIGH, LOW,  TURN_SPEED, TURN_SPEED); }  // 제자리 좌회전 (오른쪽 앞, 왼쪽 뒤)
 void spinRight()  { action = "우회전"; drive(LOW,  HIGH, TURN_SPEED, TURN_SPEED); }  // 제자리 우회전 (오른쪽 뒤, 왼쪽 앞)
 void stopCar()    { action = "정지";   drive(HIGH, HIGH, 0, 0); }                    // 정지
