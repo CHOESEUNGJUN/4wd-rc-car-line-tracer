@@ -16,7 +16,7 @@
 
 // --- 속도 (0~255) ---
 int SPEED            = 100;   // 직진
-int TURN_SPEED       = 100;   // 라인 보정 (달리면서 크게 꺾기)
+int TURN_SPEED       = 170;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
 int AVOID_TURN_SPEED = 170;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
 float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값

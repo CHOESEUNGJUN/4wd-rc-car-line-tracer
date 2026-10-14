@@ -21,8 +21,8 @@ int DEBUG    = 1;          // 1 = 상태를 계속 출력, 0 = 끔 (다 맞춘 �
 int DEBUG_MS = 300;        // 주행 중 상태 출력 간격 (ms)
 
 // --- 속도 (0~255) ---
-int SPEED       = 140;     // 직진 속도
-int TURN_SPEED  = 140;     // 제자리 좌회전 / 우회전 속도 (커브에서 약하면 올리기)
+int SPEED       = 100;     // 직진 속도 (주행용과 같게)
+int TURN_SPEED  = 170;     // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
 float CURVE_FAST = 1.4;    // 살짝 틀 때 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (작을수록 많이 휨)
 
