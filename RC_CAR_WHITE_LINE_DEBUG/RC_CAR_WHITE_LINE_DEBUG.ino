@@ -27,6 +27,11 @@ float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (�
 
 int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
 
+// --- 좌우 바퀴 속도 보정 (같은 값을 줘도 모터마다 힘이 달라서) ---
+//   직진시켜서 한쪽으로 휘면 느린 쪽에 더하기. 오른쪽으로 휘면 오른쪽이 느린 것
+int RIGHT_TRIM = 0;           // 오른쪽 바퀴에 더할 속도
+int LEFT_TRIM  = 15;          // 왼쪽 바퀴에 더할 속도 (왼쪽이 느려서 올림)
+
 // --- 장애물 거리 (mm) ---
 int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈추고 회피 모드
 
@@ -481,6 +486,6 @@ void drive(int rightDir, int leftDir, int rightSpeed, int leftSpeed) {
   digitalWrite(LeftMotor_3_pin, leftDir);
   digitalWrite(LeftMotor_4_pin, !leftDir);
 
-  analogWrite(RightMotor_E_pin, rightSpeed);
-  analogWrite(LeftMotor_E_pin, leftSpeed);
+  analogWrite(RightMotor_E_pin, rightSpeed == 0 ? 0 : constrain(rightSpeed + RIGHT_TRIM, 0, 255));
+  analogWrite(LeftMotor_E_pin,  leftSpeed  == 0 ? 0 : constrain(leftSpeed  + LEFT_TRIM,  0, 255));
 }

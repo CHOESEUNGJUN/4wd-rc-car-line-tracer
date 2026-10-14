@@ -20,6 +20,11 @@ int LEFT_45_MS  = 500;
 int TURN_SPEED = 170;      // 본 코드 의 AVOID_TURN_SPEED 와 같게 (멈춘 상태에서 도는 속도)
 int STEP_MS    = 20;       // +/- 한 번에 바뀌는 양
 
+// --- 좌우 바퀴 속도 보정 (같은 값을 줘도 모터마다 힘이 달라서) ---
+//   직진시켜서 한쪽으로 휘면 느린 쪽에 더하기. 오른쪽으로 휘면 오른쪽이 느린 것
+int RIGHT_TRIM = 0;           // 오른쪽 바퀴에 더할 속도
+int LEFT_TRIM  = 15;          // 왼쪽 바퀴에 더할 속도 (왼쪽이 느려서 올림)
+
 // --- 모터 핀 (본 코드 과 같음) ---
 int RightMotor_E_pin = 5;
 int LeftMotor_E_pin  = 6;
@@ -82,6 +87,6 @@ void drive(int rightDir, int leftDir, int rightSpeed, int leftSpeed) {
   digitalWrite(RightMotor_2_pin, !rightDir);
   digitalWrite(LeftMotor_3_pin, leftDir);
   digitalWrite(LeftMotor_4_pin, !leftDir);
-  analogWrite(RightMotor_E_pin, rightSpeed);
-  analogWrite(LeftMotor_E_pin, leftSpeed);
+  analogWrite(RightMotor_E_pin, rightSpeed == 0 ? 0 : constrain(rightSpeed + RIGHT_TRIM, 0, 255));
+  analogWrite(LeftMotor_E_pin,  leftSpeed  == 0 ? 0 : constrain(leftSpeed  + LEFT_TRIM,  0, 255));
 }
