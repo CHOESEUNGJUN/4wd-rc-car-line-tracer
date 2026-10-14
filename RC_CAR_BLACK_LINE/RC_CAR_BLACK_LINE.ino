@@ -28,6 +28,17 @@ int TURN_LEFT_90_MS  = 900;
 int TURN_RIGHT_45_MS = 500;
 int TURN_LEFT_45_MS  = 500;
 
+// --- 출발할 때 자동 회전 측정 (선 위에 차를 선과 나란히 올려놓고 켜기) ---
+//   켤 때 제자리에서 오른쪽, 왼쪽으로 한 바퀴씩 돌면서 가운데 센서가 선을 만나는 시간을 재서
+//   위 90도 / 45도 시간을 덮어씀. 선 위에 없거나 측정에 실패하면 위 값을 그대로 씀
+int AUTO_CAL       = 1;      // 1 = 자동 측정, 0 = 위 값 그대로
+int CAL_TIMEOUT_MS = 5000;   // 이 시간 안에 선을 못 만나면 측정 포기
+
+// --- 회피 중 장애물과 거리 유지 (옆으로 나가기, 지나가기 구간) ---
+//   처음 잰 옆 거리를 기억해 두고, 가까워지면 바깥쪽으로, 멀어지면 장애물 쪽으로 살짝 돌아서 맞춤
+int KEEP_TOL_MM  = 30;       // 처음 거리에서 이만큼 넘게 달라지면 고침
+int KEEP_TURN_MS = 60;       // 한 번 고칠 때 도는 시간
+
 // --- 회피 직진 시간 (ms) ---
 int PASS_STEP_MS  = 240;      // 지나갈 때 한 번에 전진하는 시간 (전진 -> 정지 -> 옆 확인 반복)
 int PASS_EXTRA_MS = 600;      // 장애물이 안 보이게 된 뒤 더 가는 시간 (차 뒷부분까지 빠지게)
@@ -96,6 +107,7 @@ void setup() {
   pinMode(LeftMotor_3_pin, OUTPUT);
   pinMode(LeftMotor_4_pin, OUTPUT);
   pinMode(LeftMotor_E_pin, OUTPUT);
+  calibrateTurns();                // 선 위에 올려놓고 켜면 회전 시간 자동 측정
 }
 
 void loop() {
@@ -246,7 +258,12 @@ int passObstacle(int sideOff, int minMM, int seenMM) {
   int minMs = mmToMs(minMM);
   int goneMs = 0;
   int ds = lookAt(sideOff, SERVO_BIG_MS);
+  int keepMM = 0;                  // 처음 보인 옆 거리 (이 거리를 유지)
   while (goneMs < PASS_MAX_MS && !(ds >= seenMM && goneMs >= minMs)) {
+    if (ds < seenMM) {             // 옆에 장애물 보임 -> 거리 유지
+      if (keepMM == 0) keepMM = ds;
+      else keepDistance(sideOff, ds, keepMM);
+    }
     moveMs(PASS_STEP_MS, false);
     goneMs += PASS_STEP_MS;
     delay(SETTLE_MS);
@@ -323,6 +340,51 @@ bool runUntilAny(int ms) {
     if (readLine(L_Line) == 0 || readLine(C_Line) == 0 || readLine(R_Line) == 0) return true;
   return false;
 }
+
+// 출발할 때 자동 회전 측정 : 선 위에서 제자리로 돌며 가운데 센서가 선을 다시 만나는 시간을 잼
+//   처음 다시 만남 = 약 180도, 그다음 = 약 360도 -> 1도당 시간과 출발할 때 늦는 시간으로 90도 / 45도 계산
+void calibrateTurns() {
+  if (!AUTO_CAL || !centerOnLine()) return;      // 선 위에 없으면 측정 안 함 (설정값 그대로)
+  calibrateTurn(true);
+  delay(300);
+  calibrateTurn(false);
+  delay(300);
+}
+
+bool calibrateTurn(bool toRight) {
+  unsigned long start = millis();
+  spin(toRight, AVOID_TURN_SPEED);
+  long t180 = waitLineEntry(start);
+  long t360 = (t180 > 0) ? waitLineEntry(start) : 0;
+  stopCar();
+  if (t180 <= 0 || t360 <= t180) return false;    // 실패 -> 설정값 그대로
+  float msPerDeg = (t360 - t180) / 180.0;
+  float lag = t180 - 180 * msPerDeg;               // 멈춘 상태에서 출발할 때 늦는 시간
+  if (lag < 0) lag = 0;
+  int t90 = lag + 90 * msPerDeg;
+  int t45 = lag + 45 * msPerDeg;
+  if (t90 < 200 || t90 > 2000) return false;       // 말이 안 되는 값이면 버림
+  if (toRight) { TURN_RIGHT_90_MS = t90; TURN_RIGHT_45_MS = t45; }
+  else         { TURN_LEFT_90_MS  = t90; TURN_LEFT_45_MS  = t45; }
+  return true;
+}
+
+// 가운데 센서가 선에서 벗어났다가 다시 선을 만날 때까지 기다림. 돌려주는 값 = start 부터 걸린 ms (실패하면 0)
+long waitLineEntry(unsigned long start) {
+  while (centerOnLine())  if (millis() - start > (unsigned long)CAL_TIMEOUT_MS) return 0;
+  delay(20);                                        // 선 가장자리에서 값이 튀는 것 무시
+  while (!centerOnLine()) if (millis() - start > (unsigned long)CAL_TIMEOUT_MS) return 0;
+  return millis() - start;
+}
+
+// 장애물과 거리 유지 : 처음 거리(keepMM)보다 가까우면 바깥쪽으로, 멀면 장애물 쪽으로 살짝 돌기
+void keepDistance(int sideOff, int ds, int keepMM) {
+  bool obstacleOnLeft = (sideOff < 0);
+  if      (ds < keepMM - KEEP_TOL_MM) turn(obstacleOnLeft, KEEP_TURN_MS);    // 가까워짐 -> 장애물 반대쪽으로
+  else if (ds > keepMM + KEEP_TOL_MM) turn(!obstacleOnLeft, KEEP_TURN_MS);   // 멀어짐 -> 장애물 쪽으로
+}
+
+bool centerOnLine() { return readLine(C_Line) == 0; }      // 가운데 센서가 검은 선 위 (readLine 이 뒤집어서 선 = 0)
 
 void turn90(bool toRight) { turn(toRight, toRight ? TURN_RIGHT_90_MS : TURN_LEFT_90_MS); }
 void turn45(bool toRight) { turn(toRight, toRight ? TURN_RIGHT_45_MS : TURN_LEFT_45_MS); }
