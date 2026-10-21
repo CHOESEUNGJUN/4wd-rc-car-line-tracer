@@ -1,4 +1,4 @@
-/* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피  [흰 선 / 디버그 버전]
+/* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피  [흰 선 v1.0 / 디버그 버전]
  *  ★ 시리얼 디버그 출력이 있는 버전입니다. (시리얼 모니터 9600 baud)
  *    단계별 로그를 보면서 문제를 찾을 때 씀. 출력 때문에 조금 느려짐.
  *    어두운 바탕 + 흰 선 트랙용. 실제 주행은 시리얼이 없는 RC_CAR_WHITE_LINE/RC_CAR_WHITE_LINE.ino 를 쓰세요.
@@ -28,12 +28,7 @@ float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (�
 int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
 
 // --- 장애물 거리 (mm) ---
-int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
-
-// --- 장애물을 만났을 때 ---
-int OBSTACLE_MODE = 0;        // 0 = 멈춰서 기다리다가 치우면 다시 출발,  1 = 돌아서 피하기 (회피 1~8단계)
-int CLEAR_COUNT   = 5;        // 연속으로 이만큼 장애물이 안 보여야 치운 걸로 봄 (잡음 방지, 60ms 간격)
-int CLEAR_WAIT_MS = 500;      // 치운 걸 확인하고 출발하기 전 기다리는 시간 (손 뺄 시간)
+int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈추고 회피 모드
 
 // --- 초음파 잡음 걸러내기 ---
 int PING_MS      = 60;     // 초음파 쏘는 간격 (ms). 너무 자주 쏘면 앞 메아리가 섞여서 가짜 값이 나옴
@@ -57,24 +52,13 @@ int OBST_EXTRA_MM  = 150;  // 정면 거리 + 이 값 안쪽으로 보이면 "�
 int AVOID_SIDE = 0;        // 0 = 자동(짧은 쪽),  1 = 무조건 오른쪽 회피,  2 = 무조건 왼쪽 회피
 
 // --- 회피 회전 (멈춘 상태에서 제자리 회전) ---
-//   TURN_TEST_WHITE_LINE.ino 로 직접 재서 맞춘 값. 각도가 안 맞으면 여기만 고치기
+//   TURN_TEST.ino 로 직접 재서 맞춘 값. 각도가 안 맞으면 여기만 고치기
 //   ※ 차마다 다름 (모터·바퀴·건전지·바닥). 다른 차에 올리면 TURN_TEST_WHITE_LINE 로 다시 재기
 int AVOID_TURN_SPEED = 170;    // 회피 회전 속도. 멈춘 상태에서 돌기 시작하므로 라인 보정(TURN_SPEED)보다 세게
 int TURN_RIGHT_90_MS = 550;    // 오른쪽 90도 (ms)
 int TURN_LEFT_90_MS  = 900;    // 왼쪽   90도 (ms)
 int TURN_RIGHT_45_MS = 500;    // 오른쪽 45도 (ms)
 int TURN_LEFT_45_MS  = 500;    // 왼쪽   45도 (ms)
-
-// --- 출발할 때 자동 회전 측정 (선 위에 차를 선과 나란히 올려놓고 켜기) ---
-//   켤 때 제자리에서 오른쪽, 왼쪽으로 한 바퀴씩 돌면서 가운데 센서가 선을 만나는 시간을 재서
-//   위 90도 / 45도 시간을 덮어씀. 선 위에 없거나 측정에 실패하면 위 값을 그대로 씀
-int AUTO_CAL       = 1;      // 1 = 자동 측정, 0 = 위 값 그대로
-int CAL_TIMEOUT_MS = 5000;   // 이 시간 안에 선을 못 만나면 측정 포기
-
-// --- 회피 중 장애물과 거리 유지 (옆으로 나가기, 지나가기 구간) ---
-//   처음 잰 옆 거리를 기억해 두고, 가까워지면 바깥쪽으로, 멀어지면 장애물 쪽으로 살짝 돌아서 맞춤
-int KEEP_TOL_MM  = 30;       // 처음 거리에서 이만큼 넘게 달라지면 고침
-int KEEP_TURN_MS = 60;       // 한 번 고칠 때 도는 시간
 int SIDE_MAX_MM    = 400;  // (크기 잴 때) 장애물 끝이 안 보이면 이 값으로 침
 
 // --- 회피 3단계 : 장애물을 옆에 두고 지나가기 (두 번 반복 : 옆면 -> 돌기 -> 뒷면까지) ---
@@ -93,12 +77,7 @@ int LINE_OVER_MM    = 120; // 선 발견 후 : 가운데 센서가 선을 넘어
 int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 시간 (가운데 센서가 선을 보면 바로 멈춤). 90도 조금 넘게만
 
 // --- 선을 놓쳤을 때 ---
-// --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
-//   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
-int SWAY_START_MS = 250;            // 처음 흔드는 폭 (도는 시간)
-int SWAY_GROW_MS  = 150;            // 한 번 흔들 때마다 늘어나는 폭
-int SWAY_SPEED    = 190;            // 흔들 때 회전 속도
-unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
+unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지 (20000 = 20초)
 
 // --- 서보 ---
 int SERVO_CENTER = 90;     // 정면 각도
@@ -127,11 +106,11 @@ int servoPin = 2;            // 서보
 // ============================================================
 Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터/출력)
-bool lostStopped = false;          // 흔들어서 찾다가 못 찾고 멈춘 상태
-int lastSide = 0;                  // 마지막으로 선이 있던 쪽 (-1 왼쪽, +1 오른쪽, 0 가운데) : 놓치면 이쪽부터 흔듦
+unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
 int obstLeftMM  = 0;               // 저장한 장애물 폭 : 정면 기준 왼쪽으로 뻗은 길이
 int obstRightMM = 0;               //                     오른쪽으로 뻗은 길이
 const char* action = "정지";       // 지금 하고 있는 동작 (디버그용)
+bool searchLine = false;           // 회피 직후 : 선이 안 보이면 전진하며 찾기
 unsigned long lastDebug = 0;
 unsigned long lastPing = 0;        // 마지막으로 초음파 쏜 시각
 int frontDist = 9999;              // 마지막으로 잰 정면 거리
@@ -159,7 +138,6 @@ void setup() {
   Serial.print(F("SPEED "));        Serial.print(SPEED);
   Serial.print(F(" | AVOID_MM "));  Serial.println(AVOID_MM);
   if (AVOID_MM < 100) Serial.println(F("경고 : AVOID_MM 이 100 보다 작음. 초음파는 20mm 안쪽을 못 재서, 멈추기 전에 부딪히면 장애물을 못 봄"));
-  calibrateTurns();                // 선 위에 올려놓고 켜면 회전 시간 자동 측정
 }
 
 void loop() {
@@ -188,24 +166,6 @@ void printLine() {                 // 라인센서 3개 값 출력 (L,C,R)
 // ============================================================
 // 장애물
 // ============================================================
-// 장애물을 치울 때까지 멈춰서 기다림. CLEAR_COUNT 번 연속으로 장애물이 안 보이면 다시 출발
-void waitUntilClear() {
-  stopCar();
-  EduServo.write(SERVO_CENTER);
-  Serial.println(F("[장애물] 멈춤 -> 치울 때까지 기다림"));
-  int clear = 0;
-  unsigned long lastPrint = 0;
-  while (clear < CLEAR_COUNT) {
-    delay(PING_MS);
-    int d = Ultrasonic();
-    if (d >= AVOID_MM) clear++;
-    else clear = 0;
-    if (millis() - lastPrint > 1000) { Serial.print(F("  거리 ")); Serial.println(d); lastPrint = millis(); }
-  }
-  Serial.println(F("[장애물] 치움 -> 다시 출발"));
-  delay(CLEAR_WAIT_MS);
-}
-
 bool checkObstacle(int d) {        // d = 정면 거리(mm). 장애물 있어서 처리했으면 true
   if (d >= AVOID_MM) return false; // 장애물 없음
 
@@ -216,21 +176,18 @@ bool checkObstacle(int d) {        // d = 정면 거리(mm). 장애물 있어서
     Serial.print(F("[장애물?] ")); Serial.print(d);
     Serial.print(F(" -> 다시 재니 ")); Serial.print(d2); Serial.println(F(" : 잡음, 무시"));
     last_state = -1;
+    searchLine = true;
     return false;
   }
 
-  Serial.print(F("[장애물] 거리 ")); Serial.println(d2);
-  if (OBSTACLE_MODE == 1) {
-    Serial.println(F("[장애물] -> 회피 모드 시작"));
-    avoidMode(d2);
-    Serial.println(F("[회피 모드 끝]"));
-  }
-  else {
-    waitUntilClear();
-  }
+  Serial.print(F("[장애물] 거리 ")); Serial.print(d2);
+  Serial.println(F(" -> 회피 모드 시작"));
+  avoidMode(d2);
+  Serial.println(F("[회피 모드 끝]"));
 
   last_state = -1;                 // 라인 상태 처음부터 다시 판단
-  lostStopped = false;
+  lost_since = 0;
+  searchLine = true;               // 선이 안 보이면 멈춰 있지 말고 전진하며 찾기
   return true;
 }
 
@@ -243,18 +200,24 @@ void followLine() {
   int C = digitalRead(C_Line);
   int R = digitalRead(R_Line);
 
-  if (L == 1 && C == 1 && R == 1) {   // 선 놓침 -> 좌우로 흔들며 찾기
-    if (lostStopped) return;                   // 이미 흔들어 봤는데 못 찾고 멈춘 상태
-    if (swaySearch()) { last_state = -1; return; }
-    lostStopped = true;
-    last_state = -1;
+  // 1,1,1 : 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
+  if (L == 1 && C == 1 && R == 1) {
+    if (searchLine) {              // 회피 직후인데 선이 없음 -> 전진하며 찾기 (멈춰 있지 않게)
+      searchLine = false;
+      goForward();
+      Serial.println(F("선 없음 -> 전진하며 찾기"));
+    }
+    if (lost_since == 0) lost_since = millis();
+    if (millis() - lost_since >= LOST_STOP_MS) {
+      stopCar();
+      Serial.println(F("선 없음 -> 정지"));
+      lost_since = millis();
+      last_state = -1;
+    }
     return;
   }
-  lostStopped = false;
-
-  if (L == 1 && R == 0) lastSide = -1;       // 왼쪽으로 보정하는 상태 (선이 왼쪽)
-  if (L == 0 && R == 1) lastSide = +1;       // 오른쪽으로 보정하는 상태 (선이 오른쪽)
-  if (L == 1 && C == 0 && R == 1) lastSide = 0;
+  lost_since = 0;
+  searchLine = false;
 
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return; // 상태 그대로면 아무것도 안 함
@@ -400,7 +363,6 @@ int passObstacle(int sideOff, int minMM, int seenMM) {
   Serial.print(F(" mm 직진, 옆 거리 ")); Serial.print(seenMM); Serial.println(F(" 안쪽이면 보임"));
 
   int ds = lookAt(sideOff, SERVO_BIG_MS);              // 먼저 옆을 봄
-  int keepMM = 0;                                      // 처음 보인 옆 거리 (이 거리를 유지)
   while (goneMM < PASS_MAX_MM) {
     Serial.print(F("    간 거리 ")); Serial.print(goneMM);
     Serial.print(F(" | 옆 거리 "));  Serial.print(ds);
@@ -410,10 +372,6 @@ int passObstacle(int sideOff, int minMM, int seenMM) {
     }
     if (ds < seenMM) Serial.println(F(" -> 보임, 살짝 전진"));
     else             Serial.println(F(" -> 아직 최소 거리 전, 전진"));
-    if (ds < seenMM) {                                 // 옆에 장애물 보임 -> 거리 유지
-      if (keepMM == 0) keepMM = ds;
-      else keepDistance(sideOff, ds, keepMM);
-    }
     moveMM(PASS_STEP_MM, false);                       // 살짝 가고
     goneMM += PASS_STEP_MM;
     delay(SETTLE_MS);                                  // 멈춰서 완전히 설 때까지 기다리고
@@ -462,85 +420,6 @@ bool moveMM(int mm, bool watchLine) {
     if (watchLine && onLine()) { stopCar(); return true; }
   }
   stopCar();
-  return false;
-}
-
-// 출발할 때 자동 회전 측정 : 선 위에서 제자리로 돌며 가운데 센서가 선을 다시 만나는 시간을 잼
-//   처음 다시 만남 = 약 180도, 그다음 = 약 360도 -> 1도당 시간과 출발할 때 늦는 시간으로 90도 / 45도 계산
-void calibrateTurns() {
-  if (!AUTO_CAL) { Serial.println(F("[자동 회전 측정] 꺼짐 -> 설정값 사용")); return; }
-  if (!centerOnLine()) { Serial.println(F("[자동 회전 측정] 가운데 센서가 선 위에 없음 -> 설정값 사용")); return; }
-  Serial.println(F("[자동 회전 측정] 시작 (오른쪽, 왼쪽 한 바퀴씩)"));
-  if (!calibrateTurn(true))  Serial.println(F("  오른쪽 측정 실패 -> 설정값 사용"));
-  delay(300);
-  if (!calibrateTurn(false)) Serial.println(F("  왼쪽 측정 실패 -> 설정값 사용"));
-  delay(300);
-  Serial.print(F("  오른쪽 90도 ")); Serial.print(TURN_RIGHT_90_MS);
-  Serial.print(F(" / 45도 "));       Serial.print(TURN_RIGHT_45_MS);
-  Serial.print(F(" ms | 왼쪽 90도 ")); Serial.print(TURN_LEFT_90_MS);
-  Serial.print(F(" / 45도 "));       Serial.print(TURN_LEFT_45_MS); Serial.println(F(" ms"));
-}
-
-bool calibrateTurn(bool toRight) {
-  unsigned long start = millis();
-  spin(toRight, AVOID_TURN_SPEED);
-  long t180 = waitLineEntry(start);
-  long t360 = (t180 > 0) ? waitLineEntry(start) : 0;
-  stopCar();
-  if (t180 <= 0 || t360 <= t180) return false;    // 실패 -> 설정값 그대로
-  float msPerDeg = (t360 - t180) / 180.0;
-  float lag = t180 - 180 * msPerDeg;               // 멈춘 상태에서 출발할 때 늦는 시간
-  if (lag < 0) lag = 0;
-  int t90 = lag + 90 * msPerDeg;
-  int t45 = lag + 45 * msPerDeg;
-  if (t90 < 200 || t90 > 2000) return false;       // 말이 안 되는 값이면 버림
-  if (toRight) { TURN_RIGHT_90_MS = t90; TURN_RIGHT_45_MS = t45; }
-  else         { TURN_LEFT_90_MS  = t90; TURN_LEFT_45_MS  = t45; }
-  return true;
-}
-
-// 가운데 센서가 선에서 벗어났다가 다시 선을 만날 때까지 기다림. 돌려주는 값 = start 부터 걸린 ms (실패하면 0)
-long waitLineEntry(unsigned long start) {
-  while (centerOnLine())  if (millis() - start > (unsigned long)CAL_TIMEOUT_MS) return 0;
-  delay(20);                                        // 선 가장자리에서 값이 튀는 것 무시
-  while (!centerOnLine()) if (millis() - start > (unsigned long)CAL_TIMEOUT_MS) return 0;
-  return millis() - start;
-}
-
-// 장애물과 거리 유지 : 처음 거리(keepMM)보다 가까우면 바깥쪽으로, 멀면 장애물 쪽으로 살짝 돌기
-void keepDistance(int sideOff, int ds, int keepMM) {
-  bool obstacleOnLeft = (sideOff < 0);
-  if (ds < keepMM - KEEP_TOL_MM) {
-    Serial.println(F("      -> 장애물에 가까워짐, 바깥쪽으로 살짝"));
-    turn(obstacleOnLeft, KEEP_TURN_MS);
-  }
-  else if (ds > keepMM + KEEP_TOL_MM) {
-    Serial.println(F("      -> 장애물에서 멀어짐, 장애물 쪽으로 살짝"));
-    turn(!obstacleOnLeft, KEEP_TURN_MS);
-  }
-}
-
-bool centerOnLine() { return digitalRead(C_Line) == 0; }   // 가운데 센서가 흰 선 위
-
-// 선 놓침 : 제자리에서 좌우로 머리를 흔들며 찾기. 찾으면 true
-//   마지막으로 선을 본 쪽부터 (모르면 왼쪽부터), 가운데를 지나 반대쪽으로 갈 때마다 폭을 SWAY_GROW_MS 씩 넓힘
-bool swaySearch() {
-  bool toRight = (lastSide > 0);
-  int prevAmp = 0, amp = SWAY_START_MS;
-  unsigned long start = millis();
-  Serial.println(lastSide > 0 ? F("선 놓침 -> 오른쪽부터 흔들며 찾기") : F("선 놓침 -> 왼쪽부터 흔들며 찾기"));
-  while (millis() - start < SWAY_MAX_MS) {
-    spin(toRight, SWAY_SPEED);
-    unsigned long t0 = millis();
-    while (millis() - t0 < (unsigned long)(prevAmp + amp)) {
-      if (onLine()) { goForward(); Serial.println(F("  선 찾음 -> 바로 전진")); return true; }
-    }
-    toRight = !toRight;
-    prevAmp = amp;
-    amp += SWAY_GROW_MS;
-  }
-  stopCar();
-  Serial.println(F("  못 찾음 -> 정지 (선이 보이면 다시 출발)"));
   return false;
 }
 

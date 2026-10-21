@@ -1,4 +1,5 @@
-/* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피
+/* 4휠 스마트 RC카 - 라인트레이서 + 초음파 회피  [흰 선 v1.0]
+ *  v1.0 그대로 유지하는 버전 (실차 테스트 완료). 새 기능 실험은 검은 선 버전에서 함.
  *  ★ 시리얼이 없는 버전입니다. (실제 주행용, 가장 빠름)
  *    [흰 선 버전] 어두운 바탕 + 흰 선 트랙용. 밝은 바탕 + 검은 선은 RC_CAR_BLACK_LINE/RC_CAR_BLACK_LINE.ino
  *    로그를 보며 디버깅하려면 RC_CAR_WHITE_LINE_DEBUG/RC_CAR_WHITE_LINE_DEBUG.ino 를 쓰세요.
@@ -26,17 +27,6 @@ int TURN_LEFT_90_MS  = 900;
 int TURN_RIGHT_45_MS = 500;
 int TURN_LEFT_45_MS  = 500;
 
-// --- 출발할 때 자동 회전 측정 (선 위에 차를 선과 나란히 올려놓고 켜기) ---
-//   켤 때 제자리에서 오른쪽, 왼쪽으로 한 바퀴씩 돌면서 가운데 센서가 선을 만나는 시간을 재서
-//   위 90도 / 45도 시간을 덮어씀. 선 위에 없거나 측정에 실패하면 위 값을 그대로 씀
-int AUTO_CAL       = 1;      // 1 = 자동 측정, 0 = 위 값 그대로
-int CAL_TIMEOUT_MS = 5000;   // 이 시간 안에 선을 못 만나면 측정 포기
-
-// --- 회피 중 장애물과 거리 유지 (옆으로 나가기, 지나가기 구간) ---
-//   처음 잰 옆 거리를 기억해 두고, 가까워지면 바깥쪽으로, 멀어지면 장애물 쪽으로 살짝 돌아서 맞춤
-int KEEP_TOL_MM  = 30;       // 처음 거리에서 이만큼 넘게 달라지면 고침
-int KEEP_TURN_MS = 60;       // 한 번 고칠 때 도는 시간
-
 // --- 회피 직진 시간 (ms) ---
 int PASS_STEP_MS  = 240;      // 지나갈 때 한 번에 전진하는 시간 (전진 -> 정지 -> 옆 확인 반복)
 int PASS_EXTRA_MS = 600;      // 장애물이 안 보이게 된 뒤 더 가는 시간 (차 뒷부분까지 빠지게)
@@ -53,12 +43,7 @@ int SIDE_MARGIN_MM = 100;     // 옆으로 나갈 때 : 잰 장애물 폭 + 이 
 int LEG2_MIN_MM    = 100;     // 지나가기 : 최소 (장애물까지 거리 + 이 값)은 가고 나서 판단
 
 // --- 장애물 감지 / 초음파 ---
-int AVOID_MM      = 250;      // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
-
-// --- 장애물을 만났을 때 ---
-int OBSTACLE_MODE = 0;        // 0 = 멈춰서 기다리다가 치우면 다시 출발,  1 = 돌아서 피하기 (회피 1~8단계)
-int CLEAR_COUNT   = 5;        // 연속으로 이만큼 장애물이 안 보여야 치운 걸로 봄 (잡음 방지, 60ms 간격)
-int CLEAR_WAIT_MS = 500;      // 치운 걸 확인하고 출발하기 전 기다리는 시간 (손 뺄 시간)
+int AVOID_MM      = 250;      // 이 거리 안에 장애물 -> 멈추고 회피
 int PING_MS       = 60;       // 초음파 쏘는 간격 (너무 자주 쏘면 메아리가 섞여 가짜 값)
 int MIN_VALID_MM  = 20;       // 이보다 작으면 잡음으로 버림
 long ECHO_WAIT_US = 12000;    // 메아리 기다리는 최대 시간 (약 2m)
@@ -77,12 +62,7 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 
 // --- 기타 ---
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
-// --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
-//   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
-int SWAY_START_MS = 250;            // 처음 흔드는 폭 (도는 시간)
-int SWAY_GROW_MS  = 150;            // 한 번 흔들 때마다 늘어나는 폭
-int SWAY_SPEED    = 190;            // 흔들 때 회전 속도
-unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
+unsigned long LOST_STOP_MS = 20000;   // 선 없는 상태가 이 시간 계속되면 정지
 
 // ============================================================
 // [핀]
@@ -96,8 +76,8 @@ int trigPin = 13, echoPin = 12, servoPin = 2;      // 초음파, 서보
 // ============================================================
 Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터 제어)
-bool lostStopped = false;          // 흔들어서 찾다가 못 찾고 멈춘 상태
-int lastSide = 0;                  // 마지막으로 선이 있던 쪽 (-1 왼쪽, +1 오른쪽, 0 가운데) : 놓치면 이쪽부터 흔듦
+unsigned long lost_since = 0;      // 선 놓친 시각 (0 = 선 보는 중)
+bool searchLine = false;           // 회피 직후 선이 안 보이면 전진하며 찾기
 unsigned long lastPing = 0;
 int obstLeftMM = 0, obstRightMM = 0;   // 잰 장애물 폭 (정면 기준 왼쪽 / 오른쪽)
 
@@ -112,7 +92,6 @@ void setup() {
   pinMode(LeftMotor_3_pin, OUTPUT);
   pinMode(LeftMotor_4_pin, OUTPUT);
   pinMode(LeftMotor_E_pin, OUTPUT);
-  calibrateTurns();                // 선 위에 올려놓고 켜면 회전 시간 자동 측정
 }
 
 void loop() {
@@ -123,30 +102,15 @@ void loop() {
 // ============================================================
 // 장애물 : 달리면서 정면만 확인 -> 보이면 멈추고 다시 재서 진짜면 회피
 // ============================================================
-// 장애물을 치울 때까지 멈춰서 기다림. CLEAR_COUNT 번 연속으로 장애물이 안 보이면 다시 출발
-void waitUntilClear() {
-  stopCar();
-  EduServo.write(SERVO_CENTER);
-  int clear = 0;
-  while (clear < CLEAR_COUNT) {
-    delay(PING_MS);
-    if (Ultrasonic() >= AVOID_MM) clear++;
-    else clear = 0;
-  }
-  delay(CLEAR_WAIT_MS);
-}
-
 bool checkObstacle(int d) {
   if (d >= AVOID_MM) return false;
   stopCar();
   delay(PING_MS);
   int d2 = Ultrasonic();
-  if (d2 < AVOID_MM) {                // 다시 재도 가까우면 진짜 장애물
-    if (OBSTACLE_MODE == 1) avoidMode(d2);   // 돌아서 피하기
-    else                    waitUntilClear();  // 멈춰서 치울 때까지 기다리기
-  }
+  if (d2 < AVOID_MM) avoidMode(d2);   // 다시 재도 가까우면 진짜 장애물
   last_state = -1;                    // 라인 상태 처음부터 다시 판단
-  lostStopped = false;
+  lost_since = 0;
+  searchLine = true;
   return true;
 }
 
@@ -156,18 +120,14 @@ bool checkObstacle(int d) {
 void followLine() {
   int L = digitalRead(L_Line), C = digitalRead(C_Line), R = digitalRead(R_Line);
 
-  if (L == 1 && C == 1 && R == 1) {   // 선 놓침 -> 좌우로 흔들며 찾기
-    if (lostStopped) return;                   // 이미 흔들어 봤는데 못 찾고 멈춘 상태
-    if (swaySearch()) { last_state = -1; return; }
-    lostStopped = true;
-    last_state = -1;
+  if (L == 1 && C == 1 && R == 1) {          // 선 놓침 -> 하던 동작 유지, LOST_STOP_MS 지나면 정지
+    if (searchLine) { searchLine = false; goForward(); }   // 회피 직후면 전진하며 찾기
+    if (lost_since == 0) lost_since = millis();
+    if (millis() - lost_since >= LOST_STOP_MS) { stopCar(); lost_since = millis(); last_state = -1; }
     return;
   }
-  lostStopped = false;
-
-  if (L == 1 && R == 0) lastSide = -1;       // 왼쪽으로 보정하는 상태 (선이 왼쪽)
-  if (L == 0 && R == 1) lastSide = +1;       // 오른쪽으로 보정하는 상태 (선이 오른쪽)
-  if (L == 1 && C == 0 && R == 1) lastSide = 0;
+  lost_since = 0;
+  searchLine = false;
 
   int state = L * 4 + C * 2 + R;
   if (state == last_state) return;
@@ -267,12 +227,7 @@ int passObstacle(int sideOff, int minMM, int seenMM) {
   int minMs = mmToMs(minMM);
   int goneMs = 0;
   int ds = lookAt(sideOff, SERVO_BIG_MS);
-  int keepMM = 0;                  // 처음 보인 옆 거리 (이 거리를 유지)
   while (goneMs < PASS_MAX_MS && !(ds >= seenMM && goneMs >= minMs)) {
-    if (ds < seenMM) {             // 옆에 장애물 보임 -> 거리 유지
-      if (keepMM == 0) keepMM = ds;
-      else keepDistance(sideOff, ds, keepMM);
-    }
     moveMs(PASS_STEP_MS, false);
     goneMs += PASS_STEP_MS;
     delay(SETTLE_MS);
@@ -344,68 +299,6 @@ bool runUntilAny(int ms) {
   unsigned long start = millis();
   while (millis() - start < (unsigned long)ms)
     if (digitalRead(L_Line) == 0 || digitalRead(C_Line) == 0 || digitalRead(R_Line) == 0) return true;
-  return false;
-}
-
-// 출발할 때 자동 회전 측정 : 선 위에서 제자리로 돌며 가운데 센서가 선을 다시 만나는 시간을 잼
-//   처음 다시 만남 = 약 180도, 그다음 = 약 360도 -> 1도당 시간과 출발할 때 늦는 시간으로 90도 / 45도 계산
-void calibrateTurns() {
-  if (!AUTO_CAL || !centerOnLine()) return;      // 선 위에 없으면 측정 안 함 (설정값 그대로)
-  calibrateTurn(true);
-  delay(300);
-  calibrateTurn(false);
-  delay(300);
-}
-
-bool calibrateTurn(bool toRight) {
-  unsigned long start = millis();
-  spin(toRight, AVOID_TURN_SPEED);
-  long t180 = waitLineEntry(start);
-  long t360 = (t180 > 0) ? waitLineEntry(start) : 0;
-  stopCar();
-  if (t180 <= 0 || t360 <= t180) return false;    // 실패 -> 설정값 그대로
-  float msPerDeg = (t360 - t180) / 180.0;
-  float lag = t180 - 180 * msPerDeg;               // 멈춘 상태에서 출발할 때 늦는 시간
-  if (lag < 0) lag = 0;
-  int t90 = lag + 90 * msPerDeg;
-  int t45 = lag + 45 * msPerDeg;
-  if (t90 < 200 || t90 > 2000) return false;       // 말이 안 되는 값이면 버림
-  if (toRight) { TURN_RIGHT_90_MS = t90; TURN_RIGHT_45_MS = t45; }
-  else         { TURN_LEFT_90_MS  = t90; TURN_LEFT_45_MS  = t45; }
-  return true;
-}
-
-// 가운데 센서가 선에서 벗어났다가 다시 선을 만날 때까지 기다림. 돌려주는 값 = start 부터 걸린 ms (실패하면 0)
-long waitLineEntry(unsigned long start) {
-  while (centerOnLine())  if (millis() - start > (unsigned long)CAL_TIMEOUT_MS) return 0;
-  delay(20);                                        // 선 가장자리에서 값이 튀는 것 무시
-  while (!centerOnLine()) if (millis() - start > (unsigned long)CAL_TIMEOUT_MS) return 0;
-  return millis() - start;
-}
-
-// 장애물과 거리 유지 : 처음 거리(keepMM)보다 가까우면 바깥쪽으로, 멀면 장애물 쪽으로 살짝 돌기
-void keepDistance(int sideOff, int ds, int keepMM) {
-  bool obstacleOnLeft = (sideOff < 0);
-  if      (ds < keepMM - KEEP_TOL_MM) turn(obstacleOnLeft, KEEP_TURN_MS);    // 가까워짐 -> 장애물 반대쪽으로
-  else if (ds > keepMM + KEEP_TOL_MM) turn(!obstacleOnLeft, KEEP_TURN_MS);   // 멀어짐 -> 장애물 쪽으로
-}
-
-bool centerOnLine() { return digitalRead(C_Line) == 0; }   // 가운데 센서가 흰 선 위
-
-// 선 놓침 : 제자리에서 좌우로 머리를 흔들며 찾기. 찾으면 true
-//   마지막으로 선을 본 쪽부터 (모르면 왼쪽부터), 가운데를 지나 반대쪽으로 갈 때마다 폭을 SWAY_GROW_MS 씩 넓힘
-bool swaySearch() {
-  bool toRight = (lastSide > 0);
-  int prevAmp = 0, amp = SWAY_START_MS;
-  unsigned long start = millis();
-  while (millis() - start < SWAY_MAX_MS) {
-    spin(toRight, SWAY_SPEED);
-    if (runUntilAny(prevAmp + amp)) { goForward(); return true; }   // 찾으면 멈추지 않고 바로 전진
-    toRight = !toRight;
-    prevAmp = amp;
-    amp += SWAY_GROW_MS;
-  }
-  stopCar();
   return false;
 }
 
