@@ -16,8 +16,8 @@
 
 // --- 속도 (0~255) ---
 int SPEED            = 100;   // 직진
-int TURN_SPEED       = 100;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
-int AVOID_TURN_SPEED = 100;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
+int TURN_SPEED       = 140;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
+int AVOID_TURN_SPEED = 140;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
 float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
 int CURVE_MIN_SPEED  = 50;    // 살짝 보정 : 안쪽 바퀴 최저 속도
@@ -83,9 +83,9 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
 // --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
 //   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
-int SWAY_START_MS = 150;            // 처음 흔드는 폭 (도는 시간)
-int SWAY_GROW_MS  = 100;            // 한 번 흔들 때마다 늘어나는 폭
-int SWAY_SPEED    = 150;            // 흔들 때 회전 속도
+int SWAY_START_MS = 250;            // 처음 흔드는 폭 (도는 시간)
+int SWAY_GROW_MS  = 150;            // 한 번 흔들 때마다 늘어나는 폭
+int SWAY_SPEED    = 190;            // 흔들 때 회전 속도
 unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
 unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
