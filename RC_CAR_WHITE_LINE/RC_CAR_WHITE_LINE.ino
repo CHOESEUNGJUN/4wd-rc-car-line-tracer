@@ -400,7 +400,7 @@ bool swaySearch() {
   unsigned long start = millis();
   while (millis() - start < SWAY_MAX_MS) {
     spin(toRight, SWAY_SPEED);
-    if (runUntilAny(prevAmp + amp)) { stopCar(); return true; }
+    if (runUntilAny(prevAmp + amp)) { goForward(); return true; }   // 찾으면 멈추지 않고 바로 전진
     toRight = !toRight;
     prevAmp = amp;
     amp += SWAY_GROW_MS;

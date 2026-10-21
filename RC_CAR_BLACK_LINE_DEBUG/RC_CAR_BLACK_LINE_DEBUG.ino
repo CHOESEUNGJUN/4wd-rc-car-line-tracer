@@ -22,12 +22,12 @@ int DEBUG_MS = 300;        // 주행 중 상태 출력 간격 (ms)
 
 // --- 속도 (0~255) ---
 int SPEED       = 100;     // 직진 속도 (주행용과 같게)
-int TURN_SPEED  = 170;     // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
+int TURN_SPEED  = 110;     // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
 float CURVE_FAST = 1.4;    // 살짝 틀 때 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (작을수록 많이 휨)
 
 int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
-int CORNER_SPEED  = 170;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
+int CORNER_SPEED  = 140;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
 int CORNER_MAX_MS = 800;   // 코너에서 최대 이만큼만 돎 (못 찾으면 좌우로 흔들며 찾기로 넘어감)
 
 // --- 장애물 거리 (mm) ---
@@ -62,11 +62,11 @@ int AVOID_SIDE = 0;        // 0 = 자동(짧은 쪽),  1 = 무조건 오른쪽 �
 // --- 회피 회전 (멈춘 상태에서 제자리 회전) ---
 //   TURN_TEST_BLACK_LINE.ino 로 직접 재서 맞춘 값. 각도가 안 맞으면 여기만 고치기
 //   ※ 차마다 다름 (모터·바퀴·건전지·바닥). 다른 차에 올리면 TURN_TEST_BLACK_LINE 로 다시 재기
-int AVOID_TURN_SPEED = 170;    // 회피 회전 속도. 멈춘 상태에서 돌기 시작하므로 라인 보정(TURN_SPEED)보다 세게
-int TURN_RIGHT_90_MS = 550;    // 오른쪽 90도 (ms)
-int TURN_LEFT_90_MS  = 900;    // 왼쪽   90도 (ms)
-int TURN_RIGHT_45_MS = 500;    // 오른쪽 45도 (ms)
-int TURN_LEFT_45_MS  = 500;    // 왼쪽   45도 (ms)
+int AVOID_TURN_SPEED = 110;    // 회피 회전 속도. 멈춘 상태에서 돌기 시작하므로 라인 보정(TURN_SPEED)보다 세게
+int TURN_RIGHT_90_MS = 850;   // 속도 110 기준 (170 에서 잰 550 x 1.55). 출발 때 자동 측정되면 그 값으로 바뀜
+int TURN_LEFT_90_MS  = 1390;    // 왼쪽   90도 (ms)
+int TURN_RIGHT_45_MS = 775;    // 오른쪽 45도 (ms)
+int TURN_LEFT_45_MS  = 775;    // 왼쪽   45도 (ms)
 
 // --- 출발할 때 자동 회전 측정 (선 위에 차를 선과 나란히 올려놓고 켜기) ---
 //   켤 때 제자리에서 오른쪽, 왼쪽으로 한 바퀴씩 돌면서 가운데 센서가 선을 만나는 시간을 재서
@@ -77,7 +77,7 @@ int CAL_TIMEOUT_MS = 5000;   // 이 시간 안에 선을 못 만나면 측정 �
 // --- 회피 중 장애물과 거리 유지 (옆으로 나가기, 지나가기 구간) ---
 //   처음 잰 옆 거리를 기억해 두고, 가까워지면 바깥쪽으로, 멀어지면 장애물 쪽으로 살짝 돌아서 맞춤
 int KEEP_TOL_MM  = 30;       // 처음 거리에서 이만큼 넘게 달라지면 고침
-int KEEP_TURN_MS = 60;       // 한 번 고칠 때 도는 시간
+int KEEP_TURN_MS = 90;       // 한 번 고칠 때 도는 시간
 int SIDE_MAX_MM    = 400;  // (크기 잴 때) 장애물 끝이 안 보이면 이 값으로 침
 
 // --- 회피 3단계 : 장애물을 옆에 두고 지나가기 (두 번 반복 : 옆면 -> 돌기 -> 뒷면까지) ---
@@ -98,9 +98,9 @@ int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 
 // --- 선을 놓쳤을 때 ---
 // --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
 //   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
-int SWAY_START_MS = 250;            // 처음 흔드는 폭 (도는 시간)
-int SWAY_GROW_MS  = 150;            // 한 번 흔들 때마다 늘어나는 폭
-int SWAY_SPEED    = 190;            // 흔들 때 회전 속도
+int SWAY_START_MS = 320;            // 처음 흔드는 폭 (도는 시간)
+int SWAY_GROW_MS  = 190;            // 한 번 흔들 때마다 늘어나는 폭
+int SWAY_SPEED    = 150;            // 흔들 때 회전 속도
 unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
 unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
@@ -545,7 +545,8 @@ void cornerTurn(bool toRight) {
   while (millis() - t0 < (unsigned long)CORNER_MAX_MS) {
     if (readLine(C_Line) == 0) { found = true; break; }
   }
-  Serial.println(found ? F("  가운데 센서 선 찾음") : F("  코너에서 못 찾음 -> 흔들며 찾기로"));
+  if (found) goForward();                      // 가운데 센서가 선을 보면 바로 전진
+  Serial.println(found ? F("  가운데 센서 선 찾음 -> 바로 전진") : F("  코너에서 못 찾음 -> 흔들며 찾기로"));
   last_state = -1;
 }
 
@@ -560,7 +561,7 @@ bool swaySearch() {
     spin(toRight, SWAY_SPEED);
     unsigned long t0 = millis();
     while (millis() - t0 < (unsigned long)(prevAmp + amp)) {
-      if (onLine()) { stopCar(); Serial.println(F("  선 찾음 -> 라인 주행")); return true; }
+      if (onLine()) { goForward(); Serial.println(F("  선 찾음 -> 바로 전진")); return true; }
     }
     toRight = !toRight;
     prevAmp = amp;

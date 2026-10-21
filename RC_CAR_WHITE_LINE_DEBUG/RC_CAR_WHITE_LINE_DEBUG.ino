@@ -533,7 +533,7 @@ bool swaySearch() {
     spin(toRight, SWAY_SPEED);
     unsigned long t0 = millis();
     while (millis() - t0 < (unsigned long)(prevAmp + amp)) {
-      if (onLine()) { stopCar(); Serial.println(F("  선 찾음 -> 라인 주행")); return true; }
+      if (onLine()) { goForward(); Serial.println(F("  선 찾음 -> 바로 전진")); return true; }
     }
     toRight = !toRight;
     prevAmp = amp;

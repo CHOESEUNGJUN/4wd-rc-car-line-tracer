@@ -16,19 +16,19 @@
 
 // --- 속도 (0~255) ---
 int SPEED            = 100;   // 직진
-int TURN_SPEED       = 140;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
-int AVOID_TURN_SPEED = 140;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
+int TURN_SPEED       = 110;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
+int AVOID_TURN_SPEED = 110;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
 float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
 int CURVE_MIN_SPEED  = 50;    // 살짝 보정 : 안쪽 바퀴 최저 속도
-int CORNER_SPEED     = 170;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
+int CORNER_SPEED     = 140;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
 int CORNER_MAX_MS    = 800;   // 코너에서 최대 이만큼만 돎 (못 찾으면 좌우로 흔들며 찾기로 넘어감)
 
 // --- 회피 회전 시간 (ms) ※ 차마다 다름. TURN_TEST_BLACK_LINE.ino 로 재서 맞추기 ---
-int TURN_RIGHT_90_MS = 550;
-int TURN_LEFT_90_MS  = 900;
-int TURN_RIGHT_45_MS = 500;
-int TURN_LEFT_45_MS  = 500;
+int TURN_RIGHT_90_MS = 850;   // 속도 110 기준 (170 에서 잰 550 x 1.55). 출발 때 자동 측정되면 그 값으로 바뀜
+int TURN_LEFT_90_MS  = 1390;
+int TURN_RIGHT_45_MS = 775;
+int TURN_LEFT_45_MS  = 775;
 
 // --- 출발할 때 자동 회전 측정 (선 위에 차를 선과 나란히 올려놓고 켜기) ---
 //   켤 때 제자리에서 오른쪽, 왼쪽으로 한 바퀴씩 돌면서 가운데 센서가 선을 만나는 시간을 재서
@@ -39,7 +39,7 @@ int CAL_TIMEOUT_MS = 5000;   // 이 시간 안에 선을 못 만나면 측정 �
 // --- 회피 중 장애물과 거리 유지 (옆으로 나가기, 지나가기 구간) ---
 //   처음 잰 옆 거리를 기억해 두고, 가까워지면 바깥쪽으로, 멀어지면 장애물 쪽으로 살짝 돌아서 맞춤
 int KEEP_TOL_MM  = 30;       // 처음 거리에서 이만큼 넘게 달라지면 고침
-int KEEP_TURN_MS = 60;       // 한 번 고칠 때 도는 시간
+int KEEP_TURN_MS = 90;       // 한 번 고칠 때 도는 시간
 
 // --- 회피 직진 시간 (ms) ---
 int PASS_STEP_MS  = 240;      // 지나갈 때 한 번에 전진하는 시간 (전진 -> 정지 -> 옆 확인 반복)
@@ -83,9 +83,9 @@ int SERVO_FLIP     = 1;       // 서보 좌우가 반대로 달렸으면 1
 int AVOID_SIDE = 0;                   // 0 자동(짧은 쪽), 1 무조건 오른쪽, 2 무조건 왼쪽 (테스트용)
 // --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
 //   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
-int SWAY_START_MS = 250;            // 처음 흔드는 폭 (도는 시간)
-int SWAY_GROW_MS  = 150;            // 한 번 흔들 때마다 늘어나는 폭
-int SWAY_SPEED    = 190;            // 흔들 때 회전 속도
+int SWAY_START_MS = 320;            // 처음 흔드는 폭 (도는 시간)
+int SWAY_GROW_MS  = 190;            // 한 번 흔들 때마다 늘어나는 폭
+int SWAY_SPEED    = 150;            // 흔들 때 회전 속도
 unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
 unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
@@ -412,7 +412,7 @@ bool centerOnLine() { return readLine(C_Line) == 0; }      // 가운데 센서�
 //   중간에 센서 값이 바뀌어도 멈추지 않고 끝까지 돎. 다 돌면 다음 바퀴에 센서 상태로 다시 판단
 void cornerTurn(bool toRight) {
   spin(toRight, CORNER_SPEED);
-  runUntil(CORNER_MAX_MS, C_Line);
+  if (runUntil(CORNER_MAX_MS, C_Line)) goForward();   // 가운데 센서가 선을 보면 바로 전진
   last_state = -1;
 }
 
@@ -424,7 +424,7 @@ bool swaySearch() {
   unsigned long start = millis();
   while (millis() - start < SWAY_MAX_MS) {
     spin(toRight, SWAY_SPEED);
-    if (runUntilAny(prevAmp + amp)) { stopCar(); return true; }
+    if (runUntilAny(prevAmp + amp)) { goForward(); return true; }   // 찾으면 멈추지 않고 바로 전진
     toRight = !toRight;
     prevAmp = amp;
     amp += SWAY_GROW_MS;
