@@ -15,14 +15,15 @@
 // ============================================================
 
 // --- 속도 (0~255) ---
-int SPEED            = 100;   // 직진
-int TURN_SPEED       = 110;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
-int AVOID_TURN_SPEED = 110;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
+int SPEED            = 200;   // 직진
+int TURN_SPEED       = 170;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
+int AVOID_TURN_SPEED = 170;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
 float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
-float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
+float CURVE_SLOW     = 1.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
 int CURVE_MIN_SPEED  = 50;    // 살짝 보정 : 안쪽 바퀴 최저 속도
 int CORNER_SPEED     = 140;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
 int CORNER_MAX_MS    = 800;   // 코너에서 최대 이만큼만 돎 (못 찾으면 좌우로 흔들며 찾기로 넘어감)
+int LEFT_CORNER_ONLY = 1;     // 1 = 트랙 코너가 전부 왼쪽 : 오른쪽 센서만 보면 회전 대신 살짝 보정, 선 놓치면 항상 왼쪽부터 흔들기. 0 = 좌우 코너 다 있음
 
 // --- 회피 회전 시간 (ms) ※ 차마다 다름. TURN_TEST_BLACK_LINE.ino 로 재서 맞추기 ---
 int TURN_RIGHT_90_MS = 850;   // 속도 110 기준 (170 에서 잰 550 x 1.55). 출발 때 자동 측정되면 그 값으로 바뀜
@@ -57,7 +58,7 @@ int SIDE_MARGIN_MM = 100;     // 옆으로 나갈 때 : 잰 장애물 폭 + 이 
 int LEG2_MIN_MM    = 100;     // 지나가기 : 최소 (장애물까지 거리 + 이 값)은 가고 나서 판단
 
 // --- 장애물 감지 / 초음파 ---
-int AVOID_MM      = 100;      // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
+int AVOID_MM      = 50;      // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
 
 // --- 장애물을 만났을 때 ---
 int OBSTACLE_MODE = 0;        // 0 = 멈춰서 기다리다가 치우면 다시 출발,  1 = 돌아서 피하기 (회피 1~8단계)
@@ -189,7 +190,10 @@ void followLine() {
   //   L  C  R      (끝 센서 하나만 보면 많이 벗어난 것 -> 크게, 가운데와 같이 보면 -> 살짝)
   if      (L == 0 && C == 1 && R == 0) goForward();             // 직진
   else if (L == 0 && C == 1 && R == 1) curveRight();            // 오른쪽 살짝 보정
-  else if (L == 0 && C == 0 && R == 1) cornerTurn(true);         // 오른쪽 코너 : 가운데 센서가 선 볼 때까지 확실히 돌기
+  else if (L == 0 && C == 0 && R == 1) {                         // 오른쪽 센서만
+    if (LEFT_CORNER_ONLY) curveRight();                           //   오른쪽 코너는 없음 -> 밀린 것, 살짝 보정만
+    else                  cornerTurn(true);                       //   오른쪽 코너 : 가운데 센서가 선 볼 때까지 확실히 돌기
+  }
   else if (L == 1 && C == 1 && R == 0) curveLeft();             // 왼쪽 살짝 보정
   else if (L == 1 && C == 0 && R == 0) cornerTurn(false);        // 왼쪽 코너 : 가운데 센서가 선 볼 때까지 확실히 돌기
   else if (L == 1 && R == 1)           stopCar();               // 정지
@@ -419,7 +423,7 @@ void cornerTurn(bool toRight) {
 // 선 놓침 : 제자리에서 좌우로 머리를 흔들며 찾기. 찾으면 true
 //   마지막으로 선을 본 쪽부터 (모르면 왼쪽부터), 가운데를 지나 반대쪽으로 갈 때마다 폭을 SWAY_GROW_MS 씩 넓힘
 bool swaySearch() {
-  bool toRight = (lastSide > 0);
+  bool toRight = (lastSide > 0) && !LEFT_CORNER_ONLY;   // 왼쪽 코너만 있는 트랙이면 항상 왼쪽부터
   int prevAmp = 0, amp = SWAY_START_MS;
   unsigned long start = millis();
   while (millis() - start < SWAY_MAX_MS) {
