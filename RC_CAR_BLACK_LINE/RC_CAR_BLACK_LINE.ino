@@ -55,7 +55,12 @@ int SIDE_MARGIN_MM = 100;     // 옆으로 나갈 때 : 잰 장애물 폭 + 이 
 int LEG2_MIN_MM    = 100;     // 지나가기 : 최소 (장애물까지 거리 + 이 값)은 가고 나서 판단
 
 // --- 장애물 감지 / 초음파 ---
-int AVOID_MM      = 250;      // 이 거리 안에 장애물 -> 멈추고 회피
+int AVOID_MM      = 250;      // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
+
+// --- 장애물을 만났을 때 ---
+int OBSTACLE_MODE = 0;        // 0 = 멈춰서 기다리다가 치우면 다시 출발,  1 = 돌아서 피하기 (회피 1~8단계)
+int CLEAR_COUNT   = 5;        // 연속으로 이만큼 장애물이 안 보여야 치운 걸로 봄 (잡음 방지, 60ms 간격)
+int CLEAR_WAIT_MS = 500;      // 치운 걸 확인하고 출발하기 전 기다리는 시간 (손 뺄 시간)
 int PING_MS       = 60;       // 초음파 쏘는 간격 (너무 자주 쏘면 메아리가 섞여 가짜 값)
 int MIN_VALID_MM  = 20;       // 이보다 작으면 잡음으로 버림
 long ECHO_WAIT_US = 12000;    // 메아리 기다리는 최대 시간 (약 2m)
@@ -122,12 +127,28 @@ void loop() {
 // ============================================================
 // 장애물 : 달리면서 정면만 확인 -> 보이면 멈추고 다시 재서 진짜면 회피
 // ============================================================
+// 장애물을 치울 때까지 멈춰서 기다림. CLEAR_COUNT 번 연속으로 장애물이 안 보이면 다시 출발
+void waitUntilClear() {
+  stopCar();
+  EduServo.write(SERVO_CENTER);
+  int clear = 0;
+  while (clear < CLEAR_COUNT) {
+    delay(PING_MS);
+    if (Ultrasonic() >= AVOID_MM) clear++;
+    else clear = 0;
+  }
+  delay(CLEAR_WAIT_MS);
+}
+
 bool checkObstacle(int d) {
   if (d >= AVOID_MM) return false;
   stopCar();
   delay(PING_MS);
   int d2 = Ultrasonic();
-  if (d2 < AVOID_MM) avoidMode(d2);   // 다시 재도 가까우면 진짜 장애물
+  if (d2 < AVOID_MM) {                // 다시 재도 가까우면 진짜 장애물
+    if (OBSTACLE_MODE == 1) avoidMode(d2);   // 돌아서 피하기
+    else                    waitUntilClear();  // 멈춰서 치울 때까지 기다리기
+  }
   last_state = -1;                    // 라인 상태 처음부터 다시 판단
   lostStopped = false;
   return true;

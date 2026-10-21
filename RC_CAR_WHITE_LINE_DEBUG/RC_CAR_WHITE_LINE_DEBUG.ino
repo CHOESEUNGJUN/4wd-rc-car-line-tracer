@@ -28,7 +28,12 @@ float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (�
 int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
 
 // --- 장애물 거리 (mm) ---
-int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈추고 회피 모드
+int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
+
+// --- 장애물을 만났을 때 ---
+int OBSTACLE_MODE = 0;        // 0 = 멈춰서 기다리다가 치우면 다시 출발,  1 = 돌아서 피하기 (회피 1~8단계)
+int CLEAR_COUNT   = 5;        // 연속으로 이만큼 장애물이 안 보여야 치운 걸로 봄 (잡음 방지, 60ms 간격)
+int CLEAR_WAIT_MS = 500;      // 치운 걸 확인하고 출발하기 전 기다리는 시간 (손 뺄 시간)
 
 // --- 초음파 잡음 걸러내기 ---
 int PING_MS      = 60;     // 초음파 쏘는 간격 (ms). 너무 자주 쏘면 앞 메아리가 섞여서 가짜 값이 나옴
@@ -183,6 +188,24 @@ void printLine() {                 // 라인센서 3개 값 출력 (L,C,R)
 // ============================================================
 // 장애물
 // ============================================================
+// 장애물을 치울 때까지 멈춰서 기다림. CLEAR_COUNT 번 연속으로 장애물이 안 보이면 다시 출발
+void waitUntilClear() {
+  stopCar();
+  EduServo.write(SERVO_CENTER);
+  Serial.println(F("[장애물] 멈춤 -> 치울 때까지 기다림"));
+  int clear = 0;
+  unsigned long lastPrint = 0;
+  while (clear < CLEAR_COUNT) {
+    delay(PING_MS);
+    int d = Ultrasonic();
+    if (d >= AVOID_MM) clear++;
+    else clear = 0;
+    if (millis() - lastPrint > 1000) { Serial.print(F("  거리 ")); Serial.println(d); lastPrint = millis(); }
+  }
+  Serial.println(F("[장애물] 치움 -> 다시 출발"));
+  delay(CLEAR_WAIT_MS);
+}
+
 bool checkObstacle(int d) {        // d = 정면 거리(mm). 장애물 있어서 처리했으면 true
   if (d >= AVOID_MM) return false; // 장애물 없음
 
@@ -196,10 +219,15 @@ bool checkObstacle(int d) {        // d = 정면 거리(mm). 장애물 있어서
     return false;
   }
 
-  Serial.print(F("[장애물] 거리 ")); Serial.print(d2);
-  Serial.println(F(" -> 회피 모드 시작"));
-  avoidMode(d2);
-  Serial.println(F("[회피 모드 끝]"));
+  Serial.print(F("[장애물] 거리 ")); Serial.println(d2);
+  if (OBSTACLE_MODE == 1) {
+    Serial.println(F("[장애물] -> 회피 모드 시작"));
+    avoidMode(d2);
+    Serial.println(F("[회피 모드 끝]"));
+  }
+  else {
+    waitUntilClear();
+  }
 
   last_state = -1;                 // 라인 상태 처음부터 다시 판단
   lostStopped = false;
