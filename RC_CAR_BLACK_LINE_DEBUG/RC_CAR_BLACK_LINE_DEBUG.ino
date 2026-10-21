@@ -94,9 +94,10 @@ int LINE_TURN_MAX_MS = 700; // 선 위에서 원래 방향으로 돌 때 최대 
 // --- 선을 놓쳤을 때 ---
 // --- 선을 놓쳤을 때 : 제자리에서 좌우로 머리를 흔들며 찾기 ---
 //   마지막으로 선을 본 쪽부터 흔들고, 한 번 흔들 때마다 폭을 넓힘. 흔드는 중에 선이 보이면 바로 라인 주행
-int SWAY_START_MS = 280;            // 처음 흔드는 폭 (TURN_SPEED 170 기준)
-int SWAY_GROW_MS  = 170;            // 한 번 흔들 때마다 늘어나는 폭
+int SWAY_START_MS = 180;            // 처음 흔드는 폭 (TURN_SPEED 170 기준)
+int SWAY_GROW_MS  = 100;            // 한 번 흔들 때마다 늘어나는 폭
 unsigned long SWAY_MAX_MS = 3000;   // 이 시간 동안 못 찾으면 정지 (선이 다시 보일 때까지 서 있음)
+unsigned long LOST_GRACE_MS = 300; // 선이 안 보여도 이 시간 동안은 하던 동작 유지. 이보다 길게 안 보일 때만 흔들기 시작
 unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도(1,?,1) 이 시간 동안은 하던 동작 유지. 그 뒤에도 계속이면 정지
 
 // --- 서보 ---
@@ -127,6 +128,7 @@ int servoPin = 2;            // 서보
 Servo EduServo;
 int last_state = -1;               // 직전 라인 상태 (바뀔 때만 모터/출력)
 bool lostStopped = false;          // 흔들어서 찾다가 못 찾고 멈춘 상태
+unsigned long lost_since = 0;      // 선이 안 보이기 시작한 시각 (0 = 선 보는 중)
 unsigned long both_since = 0;      // 양쪽 센서가 동시에 선을 보기 시작한 시각 (0 = 아님)
 int lastSide = 0;                  // 마지막으로 선을 본 쪽 (-1 왼쪽, +1 오른쪽, 0 가운데) : 코너에서 놓치면 이쪽으로 돎
 int obstLeftMM  = 0;               // 저장한 장애물 폭 : 정면 기준 왼쪽으로 뻗은 길이
@@ -246,14 +248,18 @@ void followLine() {                // 검은 선 버전 : 센서 값 그대로 �
   int C = digitalRead(C_Line);
   int R = digitalRead(R_Line);
 
-  if (L == 0 && C == 0 && R == 0) {   // 선 놓침 -> 좌우로 흔들며 찾기
+  if (L == 0 && C == 0 && R == 0) {   // 선 놓침 -> 잠깐은 하던 동작 유지, 계속 안 보이면 좌우로 흔들며 찾기
     if (lostStopped) return;                   // 이미 흔들어 봤는데 못 찾고 멈춘 상태
+    if (lost_since == 0) lost_since = millis();
+    if (millis() - lost_since < LOST_GRACE_MS) return;   // 센서 사이로 잠깐 빠진 것일 수 있음 -> 하던 동작 유지
+    lost_since = 0;
     if (swaySearch()) { last_state = -1; return; }
     lostStopped = true;
     last_state = -1;
     return;
   }
   lostStopped = false;
+  lost_since = 0;
 
   // 1,?,1 : 양쪽 센서가 동시에 선을 봄 -> 바로 멈추지 않고 LINE_GRACE_MS 동안 하던 동작 유지
   if (L == 1 && R == 1) {
