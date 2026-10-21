@@ -95,7 +95,7 @@ unsigned long LINE_GRACE_MS = 500;   // 양쪽 센서가 동시에 선을 봐도
 int RightMotor_E_pin = 5, LeftMotor_E_pin = 6;     // 모터 속도(PWM)
 int RightMotor_1_pin = 8, RightMotor_2_pin = 9;    // 오른쪽 모터 방향
 int LeftMotor_3_pin = 10, LeftMotor_4_pin = 11;    // 왼쪽 모터 방향
-int L_Line = A5, C_Line = A4, R_Line = A3;         // 라인센서 (그대로 읽으면 검은 선 = 1, 흰 바탕 = 0)
+int L_Line = A3, C_Line = A4, R_Line = A5;         // 라인센서 실제 위치 : 왼쪽 A3, 가운데 A4, 오른쪽 A5 (검은 선 = 1, 흰 바탕 = 0)
 int trigPin = 13, echoPin = 12, servoPin = 2;      // 초음파, 서보
 
 // ============================================================

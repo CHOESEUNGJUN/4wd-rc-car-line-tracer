@@ -118,9 +118,9 @@ int RightMotor_2_pin = 9;    // 오른쪽 모터 방향 IN2
 int LeftMotor_3_pin  = 10;   // 왼쪽 모터 방향 IN3
 int LeftMotor_4_pin  = 11;   // 왼쪽 모터 방향 IN4
 
-int L_Line = A5;             // 왼쪽 라인센서
+int L_Line = A3;             // 왼쪽 라인센서 (실제 위치)
 int C_Line = A4;             // 가운데 라인센서
-int R_Line = A3;             // 오른쪽 라인센서
+int R_Line = A5;             // 오른쪽 라인센서 (실제 위치)
 
 int trigPin  = 13;           // 초음파 Trig
 int echoPin  = 12;           // 초음파 Echo
