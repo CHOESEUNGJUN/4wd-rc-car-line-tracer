@@ -27,6 +27,8 @@ float CURVE_FAST = 1.4;    // 살짝 틀 때 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW = 0.4;    // 살짝 틀 때 안쪽 바퀴 = SPEED x 이 값 (작을수록 많이 휨)
 
 int CURVE_MIN_SPEED = 50;  // 살짝 틀 때 안쪽 바퀴 최저 속도 (안쪽 바퀴가 멈추면 올리기)
+int CORNER_SPEED  = 170;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
+int CORNER_MAX_MS = 800;   // 코너에서 최대 이만큼만 돎 (못 찾으면 좌우로 흔들며 찾기로 넘어감)
 
 // --- 장애물 거리 (mm) ---
 int AVOID_MM     = 250;    // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
@@ -281,9 +283,9 @@ void followLine() {                // 검은 선 버전 : 센서 값 그대로 �
   //   L  C  R                              동작
   if      (L == 0 && C == 1 && R == 0) { goForward();  Serial.println(F("직진")); }
   else if (L == 0 && C == 1 && R == 1) { curveRight(); Serial.println(F("오른쪽 보정(살짝)")); }
-  else if (L == 0 && C == 0 && R == 1) { spinRight();  Serial.println(F("오른쪽 보정(크게, 코너)")); }
+  else if (L == 0 && C == 0 && R == 1) { Serial.println(F("오른쪽 코너 -> 가운데 센서가 선 볼 때까지 돌기")); cornerTurn(true); }
   else if (L == 1 && C == 1 && R == 0) { curveLeft();  Serial.println(F("왼쪽 보정(살짝)")); }
-  else if (L == 1 && C == 0 && R == 0) { spinLeft();   Serial.println(F("왼쪽 보정(크게, 코너)")); }
+  else if (L == 1 && C == 0 && R == 0) { Serial.println(F("왼쪽 코너 -> 가운데 센서가 선 볼 때까지 돌기")); cornerTurn(false); }
   else if (L == 1 && R == 1)           { stopCar();    Serial.println(F("정지")); }
   else                                 { Serial.println(); }
 }
@@ -534,6 +536,18 @@ void keepDistance(int sideOff, int ds, int keepMM) {
 }
 
 bool centerOnLine() { return readLine(C_Line) == 0; }      // 가운데 센서가 검은 선 위 (readLine 이 뒤집어서 선 = 0)
+
+// 코너 : 끝 센서만 선을 봄 -> 가운데 센서가 선을 다시 볼 때까지 CORNER_SPEED 로 확실히 돌기 (최대 CORNER_MAX_MS)
+void cornerTurn(bool toRight) {
+  spin(toRight, CORNER_SPEED);
+  unsigned long t0 = millis();
+  bool found = false;
+  while (millis() - t0 < (unsigned long)CORNER_MAX_MS) {
+    if (readLine(C_Line) == 0) { found = true; break; }
+  }
+  Serial.println(found ? F("  가운데 센서 선 찾음") : F("  코너에서 못 찾음 -> 흔들며 찾기로"));
+  last_state = -1;
+}
 
 // 선 놓침 : 제자리에서 좌우로 머리를 흔들며 찾기. 찾으면 true
 //   마지막으로 선을 본 쪽부터 (모르면 왼쪽부터), 가운데를 지나 반대쪽으로 갈 때마다 폭을 SWAY_GROW_MS 씩 넓힘

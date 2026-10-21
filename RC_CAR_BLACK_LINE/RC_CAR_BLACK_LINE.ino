@@ -16,11 +16,13 @@
 
 // --- 속도 (0~255) ---
 int SPEED            = 100;   // 직진
-int TURN_SPEED       = 170;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
-int AVOID_TURN_SPEED = 170;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
+int TURN_SPEED       = 100;   // 라인 크게 보정 (코너에서 약하면 올리기, 흔들리면 내리기)
+int AVOID_TURN_SPEED = 100;   // 회피 회전 (멈춘 상태에서 돌기 시작하므로 더 세게)
 float CURVE_FAST     = 1.4;   // 살짝 보정 : 바깥 바퀴 = SPEED x 이 값
 float CURVE_SLOW     = 0.4;   // 살짝 보정 : 안쪽 바퀴 = SPEED x 이 값
 int CURVE_MIN_SPEED  = 50;    // 살짝 보정 : 안쪽 바퀴 최저 속도
+int CORNER_SPEED     = 170;   // 코너(끝 센서만 선을 봄) : 가운데 센서가 선을 다시 볼 때까지 이 속도로 확실히 돎
+int CORNER_MAX_MS    = 800;   // 코너에서 최대 이만큼만 돎 (못 찾으면 좌우로 흔들며 찾기로 넘어감)
 
 // --- 회피 회전 시간 (ms) ※ 차마다 다름. TURN_TEST_BLACK_LINE.ino 로 재서 맞추기 ---
 int TURN_RIGHT_90_MS = 550;
@@ -55,7 +57,7 @@ int SIDE_MARGIN_MM = 100;     // 옆으로 나갈 때 : 잰 장애물 폭 + 이 
 int LEG2_MIN_MM    = 100;     // 지나가기 : 최소 (장애물까지 거리 + 이 값)은 가고 나서 판단
 
 // --- 장애물 감지 / 초음파 ---
-int AVOID_MM      = 250;      // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
+int AVOID_MM      = 100;      // 이 거리 안에 장애물 -> 멈춤 (아래 OBSTACLE_MODE 에 따라 기다리거나 피함)
 
 // --- 장애물을 만났을 때 ---
 int OBSTACLE_MODE = 0;        // 0 = 멈춰서 기다리다가 치우면 다시 출발,  1 = 돌아서 피하기 (회피 1~8단계)
@@ -187,9 +189,9 @@ void followLine() {
   //   L  C  R      (끝 센서 하나만 보면 많이 벗어난 것 -> 크게, 가운데와 같이 보면 -> 살짝)
   if      (L == 0 && C == 1 && R == 0) goForward();             // 직진
   else if (L == 0 && C == 1 && R == 1) curveRight();            // 오른쪽 살짝 보정
-  else if (L == 0 && C == 0 && R == 1) spin(true, TURN_SPEED);  // 오른쪽 크게 보정 (코너)
+  else if (L == 0 && C == 0 && R == 1) cornerTurn(true);         // 오른쪽 코너 : 가운데 센서가 선 볼 때까지 확실히 돌기
   else if (L == 1 && C == 1 && R == 0) curveLeft();             // 왼쪽 살짝 보정
-  else if (L == 1 && C == 0 && R == 0) spin(false, TURN_SPEED); // 왼쪽 크게 보정 (코너)
+  else if (L == 1 && C == 0 && R == 0) cornerTurn(false);        // 왼쪽 코너 : 가운데 센서가 선 볼 때까지 확실히 돌기
   else if (L == 1 && R == 1)           stopCar();               // 정지
 }
 
@@ -405,6 +407,14 @@ void keepDistance(int sideOff, int ds, int keepMM) {
 }
 
 bool centerOnLine() { return readLine(C_Line) == 0; }      // 가운데 센서가 검은 선 위 (readLine 이 뒤집어서 선 = 0)
+
+// 코너 : 끝 센서만 선을 봄 -> 가운데 센서가 선을 다시 볼 때까지 CORNER_SPEED 로 확실히 돌기 (최대 CORNER_MAX_MS)
+//   중간에 센서 값이 바뀌어도 멈추지 않고 끝까지 돎. 다 돌면 다음 바퀴에 센서 상태로 다시 판단
+void cornerTurn(bool toRight) {
+  spin(toRight, CORNER_SPEED);
+  runUntil(CORNER_MAX_MS, C_Line);
+  last_state = -1;
+}
 
 // 선 놓침 : 제자리에서 좌우로 머리를 흔들며 찾기. 찾으면 true
 //   마지막으로 선을 본 쪽부터 (모르면 왼쪽부터), 가운데를 지나 반대쪽으로 갈 때마다 폭을 SWAY_GROW_MS 씩 넓힘
